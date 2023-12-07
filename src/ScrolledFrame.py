@@ -6,7 +6,6 @@ from math import floor, ceil
 
 import os
 
-glv = None
 
 class ScrolledFrame(Frame):
 
@@ -239,7 +238,7 @@ class ScrolledFrame(Frame):
         width = photo.width() + 4
         height = photo.height() + 4
         
-        resolution = glv.get_screen_resolution()
+        resolution = self.glv.get_screen_resolution()
         locX = resolution[0] / 2 - width / 2
         locY = resolution[1] / 2 - height / 2
         
@@ -429,8 +428,7 @@ class App(Tk):
     def __init__(self, glovalvar, *args, **kwargs):
         root = Tk.__init__(self, *args, **kwargs)
 
-        global glv
-        glv = glovalvar
+        self.glv = glovalvar
 
         self.frame = ScrolledFrame(root, 98, relief='sunken')
         self.frame.pack()
@@ -475,7 +473,7 @@ class App(Tk):
         labell2.place(x=5, y=962, width=1013, height=2)             
         
     def submit(self, topData):
-        glv.addMessage('Submit')
+        self.glv.addMessage('Submit')
 
         data = {}
         
@@ -535,7 +533,7 @@ class App(Tk):
                 
                 data['split'].append(self.frame2.splitEntry[i].get())
 
-        glv.db.connect(data, self.id)
+        self.glv.db.connect(data, self.id)
        
     def buildCharScrollFrame(self, parent, chars):
         buttons = []     

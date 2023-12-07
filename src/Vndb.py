@@ -1,18 +1,16 @@
 import re
 
-glv = None
 
 class Vndb:
     
     def __init__(self, globalvar):
-        global glv
-        glv = globalvar
+        self.glv = globalvar
         self.pageUrl = 'https://vndb.org'
         self.entryId = ''
         
     def getEntryData(self, driver, id):
-        glv.addMessage('')
-        glv.addMessage('Getting vndb main data')
+        self.glv.addMessage('')
+        self.glv.addMessage('Getting vndb main data')
 
         self.entryId = id
         data = {}
@@ -28,31 +26,31 @@ class Vndb:
         data['developer2'] = ''
         data['chars'] = []
         
-        cover = glv.getElements(driver, 'class', 'vnimg')
+        cover = self.glv.getElements(driver, 'class', 'vnimg')
         
         if cover != 0:
-            cover = glv.getElement(cover[0], 'tag', 'img')
+            cover = self.glv.getElement(cover[0], 'tag', 'img')
 
             data['cover'] = cover.get_attribute('src')
 
-        glv.addMessage('Cover vndb: {}'.format(data['cover']))
+        self.glv.addMessage('Cover vndb: {}'.format(data['cover']))
 
-        details = glv.getElement(driver, 'class', 'vndetails')
+        details = self.glv.getElement(driver, 'class', 'vndetails')
 
-        romanjiTitle = glv.getElements(driver, 'tag', 'h1')
+        romanjiTitle = self.glv.getElements(driver, 'tag', 'h1')
         
         data['romanji'] =  romanjiTitle[1].get_attribute('innerHTML')
 
-        glv.addMessage('Romanji title: {}'.format(data['romanji']))
+        self.glv.addMessage('Romanji title: {}'.format(data['romanji']))
 
-        title = glv.getElement(driver, 'class', 'alttitle')
+        title = self.glv.getElement(driver, 'class', 'alttitle')
         
         if title != 0:
             data['title'] = title.get_attribute('innerHTML')
 
-        glv.addMessage('Original title: {}'.format(data['title']))
+        self.glv.addMessage('Original title: {}'.format(data['title']))
 
-        tds = glv.getElements(details, 'tag', 'td')
+        tds = self.glv.getElements(details, 'tag', 'td')
         
         next = False
         titleNext = False
@@ -63,7 +61,7 @@ class Vndb:
                     developer = dev.split('>')
                     data['developer{}'.format(i)] = developer[1][:-3]
 
-                    glv.addMessage('Develover {}: {}'.format(i, data['developer{}'.format(i)]))
+                    self.glv.addMessage('Develover {}: {}'.format(i, data['developer{}'.format(i)]))
 
                 break
             
@@ -84,19 +82,19 @@ class Vndb:
         if data['webpage'] == None:
             data['webpage'] = ''
 
-        glv.addMessage('Webpage: {}'.format(data['webpage']))
+        self.glv.addMessage('Webpage: {}'.format(data['webpage']))
                 
         return data
      
     def getCharData(self, driver):
-        glv.addMessage('')
-        glv.addMessage('Getting character data')
+        self.glv.addMessage('')
+        self.glv.addMessage('Getting character data')
 
         data = {}
         driver.get('{}/v{}/chars#chars'.format(self.pageUrl, self.entryId))  
        
-        theads = glv.getElements(driver, 'tag', 'thead')
-        tds = glv.getElements(driver, 'tag', 'td')
+        theads = self.glv.getElements(driver, 'tag', 'thead')
+        tds = self.glv.getElements(driver, 'tag', 'td')
        
         data['chars'] = []
         count = 0
@@ -119,11 +117,11 @@ class Vndb:
                 data['chars'][count]['img1'] = ''
                 data['chars'][count]['img2'] = ''
                 
-                romanji = glv.getElement(thead, 'tag', 'a')
+                romanji = self.glv.getElement(thead, 'tag', 'a')
                 
                 data['chars'][count]['romanji'] = romanji.get_attribute('innerHTML')
 
-                name = glv.getElement(thead, 'tag', 'b')
+                name = self.glv.getElement(thead, 'tag', 'b')
                 if name != 0:
                     nameStr = name.get_attribute('innerHTML')
                     data['chars'][count]['name'] = nameStr.replace('　', ' ')
@@ -131,7 +129,7 @@ class Vndb:
                     data['chars'][count]['name'] = data['chars'][count]['romanji']
                     data['chars'][count]['romanji'] = ''
 
-                gender = glv.getElement(thead, 'tag', 'abbr')
+                gender = self.glv.getElement(thead, 'tag', 'abbr')
                 
                 if gender != 0:
                     genderType = gender.get_attribute('title')
@@ -218,19 +216,19 @@ class Vndb:
                     if '>Body<' in td.get_attribute('innerHTML'):
                         bodyNext = True
                         
-            charimgs = glv.getElements(driver, 'class', 'charimg')
+            charimgs = self.glv.getElements(driver, 'class', 'charimg')
             count = 0
             for div in charimgs:
                 data['chars'][count]['img1'] = ''
                 
-                img_img = glv.getElement(div, 'tag', 'img')
+                img_img = self.glv.getElement(div, 'tag', 'img')
                 if img_img != 0:
                     img = img_img.get_attribute('src')
                     data['chars'][count]['img1'] = img
 
                 count += 1
                 
-            divs = glv.getElements(driver, 'class', 'chardesc')
+            divs = self.glv.getElements(driver, 'class', 'chardesc')
             count = 0
     
             if divs != 0 and len(charimgs) == len(divs):
@@ -277,13 +275,13 @@ class Vndb:
         return data
     
     def getOfficialWebsite(self, driver, options, title, romanji):
-        releases = glv.getElement(driver, 'class', 'releases')
+        releases = self.glv.getElement(driver, 'class', 'releases')
         webpage = ''
 
         if releases == 0:
             return '' 
          
-        trs = glv.getElements(releases, 'tag', 'tr')
+        trs = self.glv.getElements(releases, 'tag', 'tr')
 
         link = ''
         lang = False
@@ -294,12 +292,12 @@ class Vndb:
             if tr == trs[-1]:
                 self.options = []
             
-            if lang or link != '' or glv.getElement(tr, 'class', 'lang'):
+            if lang or link != '' or self.glv.getElement(tr, 'class', 'lang'):
                 lang = True
                 if not lang:
                     continue
-            abbrs = glv.getElements(tr, 'tag', 'abbr')
-            imgs = glv.getElements(tr, 'tag', 'img')
+            abbrs = self.glv.getElements(tr, 'tag', 'abbr')
+            imgs = self.glv.getElements(tr, 'tag', 'img')
 
             icons = 0
             for img in imgs:
@@ -312,9 +310,9 @@ class Vndb:
             if icons != 2: 
                 continue
 
-            tc4 = glv.getElement(tr, 'class', 'tc4')
+            tc4 = self.glv.getElement(tr, 'class', 'tc4')
             if tc4 != 0:  
-                a = glv.getElement(tc4, 'tag', 'a')
+                a = self.glv.getElement(tc4, 'tag', 'a')
 
                 text = a.get_attribute('innerHTML').lower()
                 for option in options:
@@ -333,7 +331,7 @@ class Vndb:
 
             driver.get(link)
 
-            links = glv.getElements(driver, 'tag', 'a')
+            links = self.glv.getElements(driver, 'tag', 'a')
                 
             for link in links:
                 if link.get_attribute('innerHTML') == 'Official website':

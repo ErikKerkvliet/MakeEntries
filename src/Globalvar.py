@@ -5,7 +5,7 @@ import time
 from random import uniform
 import urllib.request
 import subprocess
-import ME_db
+from Db import DB
 
 from PIL import Image
 
@@ -13,7 +13,7 @@ class Globalvar:
     
     def __init__(self):
         self.errorMessage = 'Start\n'
-        self.db = ME_db.DB(self)
+        self.db = DB(self)
         self.connection = self.db.connection
         self.home = os.path.expanduser('~')
         self.ME_folder = '{}/MakeEntries'.format(self.home)
