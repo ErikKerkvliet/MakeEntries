@@ -25,17 +25,18 @@ class Main:
 
     def __init__(self, driver):
         self.glv = Globalvar()
-        logging.basicConfig(filename='{}/log.txt'.format(self.glv.ME_folder), level=logging.ERROR)
+        self.glv.driver = driver
+        logging.basicConfig(filename='{}/log.txt'.format(self.glv.app_folder), level=logging.ERROR)
 
     def start(self):
-        self.vndbId = '0'
-        self.siteId = '0'
+        self.vndbId = '46979'
+        self.siteId = '273165'
 
-        self.glv.setTest(False)
-        self.glv.setTables()
-        if self.glv.getTest():
-            self.glv.cleanFolder('true')
-            self.glv.db.deleteAllTestRows()
+        self.glv.set_test(False)
+        self.glv.set_tables()
+        if self.glv.get_test():
+            self.glv.clean_folder('true')
+            self.glv.db.delete_all_test_rows()
 
         vndb = Vndb(self.glv)
 
@@ -44,28 +45,28 @@ class Main:
         locX = resolution[0] - 220
         locY = resolution[1] - 190
 
-        self.glv.addMessage('Getting entry nrs.')
+        self.glv.log('Getting entry nrs.')
 
-        self.askEntry = AskEntry(self, self.glv)
-        self.askEntry.title('Entry nrs.')
+        # self.askEntry = AskEntry(self, self.glv)
+        # self.askEntry.title('Entry nrs.')
+        #
+        # self.askEntry.geometry("170x109+{}+{}".format(locX, locY))
+        # self.askEntry.wm_attributes("-topmost", 1)
+        #
+        # self.askEntry.protocol("WM_DELETE_WINDOW", lambda:self.exit())
+        #
+        # try:
+        #     img = Image("photo", file="icon.gif")
+        #     self.askEntry.call('wm','iconphoto', self.askEntry, img)
+        # except:
+        #     pass
+        #
+        # self.askEntry.resizable(False, False)
+        #
+        # self.askEntry.mainloop()
 
-        self.askEntry.geometry("170x109+{}+{}".format(locX, locY))
-        self.askEntry.wm_attributes("-topmost", 1)
-
-        self.askEntry.protocol("WM_DELETE_WINDOW", lambda:self.exit())
-
-        try:
-            img = Image("photo", file="icon.gif")
-            self.askEntry.call('wm','iconphoto', self.askEntry, img)
-        except:
-            pass
-
-        self.askEntry.resizable(False, False)
-
-        self.askEntry.mainloop()
-
-        self.glv.addMessage('Url vndb: {}'.format(self.vndbId))
-        self.glv.addMessage('Url getchu: {}'.format(self.siteId))
+        self.glv.log('Url vndb: {}'.format(self.vndbId))
+        self.glv.log('Url getchu: {}'.format(self.siteId))
 
         if 'R' in self.siteId or 'V' in self.siteId:
             site = DlSite(self.glv)
@@ -75,11 +76,11 @@ class Main:
             
             site = Getchu(self.glv)
 
-        self.glv.makeMainDirs(self.vndbId)
+        self.glv.make_main_dirs(self.vndbId)
 
         options = Options()
         options.add_experimental_option("prefs", {
-            "download.default_directory": '{}/{}/temp'.format(self.glv.ME_folder, self.vndbId),
+            "download.default_directory": '{}/{}/temp'.format(self.glv.app_folder, self.vndbId),
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing.enabled": True
@@ -88,40 +89,40 @@ class Main:
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--ignore-certificate-errors')
 
-        driver = webdriver.Chrome(options=options)
+        self.glv.driver = webdriver.Chrome(options=options)
         # driver.set_window_size(1280, 100)
 
-        self.glv.addMessage('=============================================================')
+        self.glv.log('=============================================================')
 
-        dataVndb = vndb.getEntryData(driver, self.vndbId)
+        dataVndb = vndb.get_entry_data(self.glv.driver, self.vndbId)
 
         if dataVndb['title'] == '' and dataVndb['romanji'] != '':
             dataVndb['title'] = dataVndb['romanji']
             dataVndb['romanji'] = ''
 
-        self.glv.db.checkDuplicate(dataVndb['title'], dataVndb['romanji'], driver)
+        self.glv.db.check_duplicate(dataVndb['title'], dataVndb['romanji'], self.glv.driver)
 
-        charsVndb = vndb.getCharData(driver)
+        charsVndb = vndb.get_char_data(self.glv.driver)
 
         for char in charsVndb['chars']:
-            self.glv.addMessage('-------------------------------------------------------------')
-            self.glv.addMessage('Name: {}'.format(char['name']))
-            self.glv.addMessage('Romanji: {}'.format(char['romanji']))
-            self.glv.addMessage('Gender: {}'.format(char['gender']))
-            self.glv.addMessage('Height: {}'.format(char['height']))
-            self.glv.addMessage('Weight: {}'.format(char['weight']))
-            self.glv.addMessage('Measurements: {}'.format(char['measurements']))
-            self.glv.addMessage('Age: {}'.format(char['age']))
-            self.glv.addMessage('Cup: {}'.format(char['cup']))
-            self.glv.addMessage('Image 1: {}'.format(char['img1']))
+            self.glv.log('-------------------------------------------------------------')
+            self.glv.log('Name: {}'.format(char['name']))
+            self.glv.log('Romanji: {}'.format(char['romanji']))
+            self.glv.log('Gender: {}'.format(char['gender']))
+            self.glv.log('Height: {}'.format(char['height']))
+            self.glv.log('Weight: {}'.format(char['weight']))
+            self.glv.log('Measurements: {}'.format(char['measurements']))
+            self.glv.log('Age: {}'.format(char['age']))
+            self.glv.log('Cup: {}'.format(char['cup']))
+            self.glv.log('Image 1: {}'.format(char['img1']))
 
         dataVndb = {**dataVndb, **charsVndb}
 
-        self.glv.addMessage('')
-        self.glv.addMessage('=============================================================')
+        self.glv.log('')
+        self.glv.log('=============================================================')
 
-        self.glv.addMessage('Getting site data')
-        dataSite = site.getEntryData(driver, self.siteId, self.vndbId)
+        self.glv.log('Getting site data')
+        dataSite = site.get_entry_data(self.glv.driver, self.siteId, self.vndbId)
 
         chars = []
          
@@ -140,18 +141,18 @@ class Main:
 
         for value in data:
             if isinstance(data[value], str):
-                data[value] = self.glv.cleanString(data[value])
+                data[value] = self.glv.clean_string(data[value])
 
-        self.glv.addMessage('Title: {}'.format(data['title']))
-        self.glv.addMessage('Romanji: {}'.format(data['romanji']))
-        self.glv.addMessage('Developer0: {}'.format(data['developer0']))
-        self.glv.addMessage('Developer1: {}'.format(data['developer1']))
-        self.glv.addMessage('Developer2: {}'.format(data['developer2']))
-        self.glv.addMessage('Webpage: {}'.format(data['webpage']))
-        self.glv.addMessage('Infopage: {}'.format(data['infopage']))
-        self.glv.addMessage('Cover1: {}'.format(data['cover1']))
-        self.glv.addMessage('Cover2: {}'.format(data['cover2']))
-        self.glv.addMessage('released: {}'.format(data['released']))
+        self.glv.log('Title: {}'.format(data['title']))
+        self.glv.log('Romanji: {}'.format(data['romanji']))
+        self.glv.log('Developer0: {}'.format(data['developer0']))
+        self.glv.log('Developer1: {}'.format(data['developer1']))
+        self.glv.log('Developer2: {}'.format(data['developer2']))
+        self.glv.log('Webpage: {}'.format(data['webpage']))
+        self.glv.log('Infopage: {}'.format(data['infopage']))
+        self.glv.log('Cover1: {}'.format(data['cover1']))
+        self.glv.log('Cover2: {}'.format(data['cover2']))
+        self.glv.log('released: {}'.format(data['released']))
 
         done = []
         for site in dataSite['chars']:
@@ -199,23 +200,23 @@ class Main:
         for char in chars:
             for value in char:
                 if isinstance(char[value], str):
-                    char[value] = self.glv.cleanString(char[value])
+                    char[value] = self.glv.clean_string(char[value])
 
             if char['img1'] == '':
                 chars.remove(char)
 
         data['chars'] = chars
 
-        driver.quit()
+        self.glv.driver.quit()
 
-        self.glv.addMessage('Downloading images')
+        self.glv.log('Downloading images')
 
-        self.glv.downloadImages(data, self.vndbId)
+        self.glv.download_images(data, self.vndbId)
         time.sleep(2)
         import os
         from os.path import isfile, join
 
-        root = '{}/{}'.format(self.glv.ME_folder, self.vndbId)
+        root = '{}/{}'.format(self.glv.app_folder, self.vndbId)
         rootTemp = '{}/temp'.format(root)
 
         files = [f for f in os.listdir(rootTemp) if isfile(join(rootTemp, f))]
@@ -262,17 +263,16 @@ class Main:
 
             command = 'mv {} {}'.format(old_file, moveTo)
 
-            self.glv.addMessage(command)
+            self.glv.log(command)
 
             try:
                 if os.path.isfile(old_file):
                     os.system(command)
             except Exception as e:
-                self.glv.addMessage(e)
+                self.glv.log(e)
                 continue
 
-
-        root_samples = '{}/{}/samples'.format(self.glv.ME_folder, self.vndbId)
+        root_samples = '{}/{}/samples'.format(self.glv.app_folder, self.vndbId)
         files = [f for f in os.listdir(root_samples) if isfile(join(root_samples, f))]
 
         samples = []
@@ -286,29 +286,31 @@ class Main:
 
         ui = MainUI(self.glv)
 
-        ui.fillData(data, self.vndbId)
+        ui.fill_data(data, self.vndbId)
         
-        ui.doLoop()
+        ui.do_loop()
 
 
 driver = None
 main = None
-try:
-    main = Main(driver)
-    main.start()
-except Exception as e:
-    main.glv.addMessage('')
-    main.glv.addMessage(e)
-
-    resolution = main.glv.get_screen_resolution()
-    locX = int(resolution[0] / 2) - 250
-    locY = 100
-
-    error = ErrorHandler()
-    error.title('Action log')
-    error.geometry("827x522+{}+{}".format(locX, locY))
-
-    error.setErrorMessage(main.glv.errorMessage)
-    error.resizable(False, False)
-    error.mainloop()
-
+main = Main(driver)
+main.start()
+exit()
+# try:
+#     main = Main(driver)
+#     main.start()
+# except Exception as e:
+#     main.glv.log('')
+#     main.glv.log(e)
+#
+#     resolution = main.glv.get_screen_resolution()
+#     locX = int(resolution[0] / 2) - 250
+#     locY = 100
+#
+#     error = ErrorHandler()
+#     error.title('Action log')
+#     error.geometry("827x522+{}+{}".format(locX, locY))
+#
+#     error.set_error_message(main.glv.errorMessage)
+#     error.resizable(False, False)
+#     error.mainloop()

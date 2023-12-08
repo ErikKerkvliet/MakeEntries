@@ -1,11 +1,9 @@
 from tkinter import *
 
 class AskEntry(Tk):
-    glv = None
 
     def __init__(self, parent, globalvar, *args, **kwargs):
-        global glv
-        glv = globalvar
+        self.glv = globalvar
 
         root = Tk.__init__(self, *args, **kwargs)
 

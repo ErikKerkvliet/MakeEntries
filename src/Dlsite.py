@@ -1,18 +1,16 @@
-glv = None
 
 class DlSite:
 
     def __init__(self, globalvar):
-        global glv
-        glv = globalvar
+        self.glv = globalvar
         self.pageUrl = 'https://www.dlsite.com/maniax/work/=/product_id'
         self.entryId = ''
         
-    def getEntryData(self, driver, id):
+    def get_entry_data(self, driver, entry_id):
         
         print('Get dlsite main data')
         
-        self.entryId = id
+        self.entryId = entry_id
         data = {}
         
         driver.get('{}/{}.html'.format(self.pageUrl, self.entryId))
@@ -28,24 +26,24 @@ class DlSite:
         data['chars'] = []
         data['samples'] = []
         
-        glv.sleep(3)
+        self.glv.sleep(3)
         
-        siteCheck = glv.getElement(driver, 'class', 'btn_yes')
+        site_check = self.glv.get_element('class', 'btn_yes')
         
-        if siteCheck:
-            a = glv.getElement(siteCheck, 'tag', 'a')
+        if site_check:
+            a = self.glv.getElement(site_check, 'tag', 'a')
             a.click()
         
-        glv.sleep(3)
+        self.glv.sleep(3)
         
         data['infopage'] = '{}/{}.html'.format(self.pageUrl, self.entryId)
         
-        slider = glv.getElement(driver, 'class', 'slider_items')
+        slider = self.glv.get_element('class', 'slider_items')
         
-        lis = glv.getElements(slider, 'tag', 'li')
+        lis = self.glv.getElements(slider, 'tag', 'li')
         
         for li in lis:
-            img = glv.getElement(li, 'tag', 'img')
+            img = self.glv.getElement(li, 'tag', 'img')
             
             if img == 0:
                 continue
@@ -55,12 +53,12 @@ class DlSite:
             else:
                 data['samples'].append(img.get_attribute('src'))
                 
-        table = glv.getElement(driver, 'id', 'work_outline')
+        table = self.glv.get_element('id', 'work_outline')
         
         if table:
-            td = glv.getElement(table, 'tag', 'td')
+            td = self.glv.getElement(table, 'tag', 'td')
             if td:
-                a = glv.getElement(td, 'tag', 'a')
+                a = self.glv.getElement(td, 'tag', 'a')
                 if a:
                     date = a.get_attribute('innerHTML')
                     
@@ -70,8 +68,6 @@ class DlSite:
                     year = date_split1[0]
                     
                     month = date_split2[0]
-
-                    day = date_split2[1]
                     
                     data['released'] = '{}-{}-{}'.format(year, month, '26')
         

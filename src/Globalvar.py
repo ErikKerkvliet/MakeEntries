@@ -1,6 +1,8 @@
-import os, shutil
+import os
+import shutil
 import sys
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.by import By
 import time
 from random import uniform
 import urllib.request
@@ -9,307 +11,248 @@ from Db import DB
 
 from PIL import Image
 
+
 class Globalvar:
-    
+
     def __init__(self):
         self.errorMessage = 'Start\n'
         self.db = DB(self)
         self.connection = self.db.connection
         self.home = os.path.expanduser('~')
-        self.ME_folder = '{}/MakeEntries'.format(self.home)
+        self.app_folder = '{}/MakeEntries'.format(self.home)
         self.downloadFolder = ''
         self.id = 0
         self.test = False
         self.developer = 9999999
         self.character = 9999999
 
-        self.entriesTable = None
+        self.entries_table = None
         self.charactersTable = None
-        self.developersTable = None
+        self.developers_table = None
         self.entryCharactersTable = None
-        self.entryDevelopersTable = None
+        self.entrydevelopers_table = None
+        self.driver = None
 
-    def setTest(self, state):
+    def set_test(self, state):
         self.test = state
 
-    def getTest(self):
+    def get_test(self):
         return self.test
 
-    def getDeveloper(self):
+    def get_developer(self):
         return self.developer
 
-    def getCharacter(self):
+    def get_character(self):
         return self.character
 
-    def setTables(self):
-        self.entriesTable = 'entries' if self.test == False else 'entries_2'
-        self.charactersTable = 'characters' if self.test == False else 'characters_2'
-        self.developersTable = 'developers' if self.test == False else 'developers_2'
-        self.entryCharactersTable = 'entry_characters' if self.test == False else 'entry_characters_2'
-        self.entryDevelopersTable = 'entry_developers' if self.test == False else 'entry_developers_2'
+    def set_tables(self):
+        self.entries_table = 'entries' if not self.test else 'entries_2'
+        self.charactersTable = 'characters' if not self.test else 'characters_2'
+        self.developers_table = 'developers' if not self.test else 'developers_2'
+        self.entryCharactersTable = 'entry_characters' if not self.test else 'entry_characters_2'
+        self.entrydevelopers_table = 'entry_developers' if not self.test else 'entry_developers_2'
 
-    def addMessage(self, message, type='message', browser=None):
+    def log(self, message, log_type='message', browser=None):
         message = str(message)
         self.errorMessage += message
         self.errorMessage += '\n'
         print(message)
-        if type == 'error':
+        if log_type == 'error':
             browser.quit()
 
-    def get_screen_resolution(self):
-        output = subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',shell=True, stdout=subprocess.PIPE).communicate()[0]
+    @staticmethod
+    def get_screen_resolution():
+        output = subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',
+                                  shell=True,
+                                  stdout=subprocess.PIPE
+                                  ).communicate()[0]
         resolution = output.split()[0].split(b'x')
         return [int(resolution[0]), int(resolution[1])]
-    
-    def setDownloadDir(self, id):
-        self.downloadFolder = '{}/{}/temp'.format(self.ME_folder, id)
 
-    def getDownloadDir(self):
+    def set_download_dir(self, entry_id):
+        self.downloadFolder = '{}/{}/temp'.format(self.app_folder, entry_id)
+
+    def get_download_dir(self):
         return self.downloadFolder
 
-    def setDriver(self, driver):
+    def set_driver(self, driver):
         self.driver = driver
 
-    def getDriver(self):
+    def get_driver(self):
         return self.driver
 
-    def getSource(self, url):
+    @staticmethod
+    def get_source(url):
         with open('/home/erik/test.txt', 'r+') as f:
-            #f.write(source)
+            # f.write(source)
             line = '<html>'
             nr = 1
             lines = []
             while line != '</html>':
                 line = f.readline().strip('\n')
                 lines.append(line)
-            
+
             return lines
-    
-    def sleep(self, start, to=0):
+
+    @staticmethod
+    def sleep(start, to=0):
         if to != 0:
             sleep = uniform(start, to)
         else:
             sleep = start
-    
+
         time.sleep(sleep)
-          
+
     def getElement(self, driver, by, value, time=0, depth=0):
-        #if the element is not found after 5 iterations return 0
-        if depth >= 2:
-            #self.log("Can't find element '{0}', even after searching a long time".format(value))
-            
-            return 0
-        
-        element = None
-        
-        if by == 'id':
-            #try to find the element by its id
-            try:
-                element = driver.find_element_by_id(value)
-            
-            except NoSuchElementException:
-                #the element is not found. So set it to None
-                element = None
-                    
-        elif by == 'css':
-            #try to find the element by its css
-            try:
-                element = driver.find_element_by_css_selector(value)
-            
-            except NoSuchElementException:
-                #the element is not found. So set it to None
-                element = None
-                
-        elif by == 'xpath':
-            #try to find the element by its xpath
-            try:
-                element = driver.find_element_by_xpath(value)
-            
-            except NoSuchElementException:
-                #the element is not found. So set it to None
-                element = None
-                
-        elif by == 'tag':
-            #try to find the element by its tag
-            try:
-                element = driver.find_element_by_tag_name(value)
-            
-            except NoSuchElementException:
-                #the element is not found. So set it to None
-                element = None
-                
-        elif by == 'name':
-            #try to find the element by its name
-            try:
-                element = driver.find_element_by_name(value)
-            
-            except NoSuchElementException:
-                #the element is not found. So set it to None
-                element = None
-                
-        elif by == 'text':
-            #try to find the element by link text
-            try:
-                element = driver.find_element_by_link_text(value)
-            
-            except NoSuchElementException:
-                #the element is not found. So set it to None
-                element = None
-                
-        elif by == 'partial_text':
-            #try to find the element by its partial link text
-            try:
-                element = driver.find_element_by_partial_link_text(value)
-            
-            except NoSuchElementException:
-                #the element is not found. So set it to None
-                element = None
-                
-        elif by == 'class':
-            #try to find the element by its value
-            try:
-                element = driver.find_element_by_class_name(value)
-                
-            except NoSuchElementException:
-                #the element is not found. So set it to None
-                element = None
-        
-        #If the element is not found. Wait a while and try again  
-        if element == None: 
-            
-            self.sleep(time)
-            
-            element = self.getElement(driver, by, value, 1, depth+1)
-        
-        return element
-    
+        original_driver = self.driver
+        self.driver = driver
+        result = self.get_element(by, value, time, depth)
+        self.driver = original_driver
+        return result
+
     def getElements(self, driver, by, value, time=0, depth=0):
-        #if the elements are not found after 5 iterations return 0
+        original_driver = self.driver
+        self.driver = driver
+        result = self.get_elements(by, value, time, depth)
+        self.driver = original_driver
+        return result
+
+    # by can be id / css_selector / xpath / tag / name / link_text / partial_text / class
+    def get_element(self, by, value, wait=1, depth=0):
+        by = self.un_simplify(by)
+        # If the element isn't found after 3 iterations return 0
         if depth >= 2:
-            #self.log("Can't find elements '{0}', even after searching a long time".format(value))
-            
+            self.log("Can't find element '{0}', even after searching a long time".format(value))
             return 0
-        
-        if by == 'css':
-            #try to find the elements by their css
-            elements = driver.find_elements_by_css_selector(value)
-            
-                
-        elif by == 'xpath':
-            #try to find the elements by their xpath
-            elements = driver.find_elements_by_xpath(value)
 
-                
+        try:
+            return self.driver.find_element(by, value)
+        except NoSuchElementException:
+            # Wait a while and try again
+            time.sleep(wait)
+            return self.get_element(by, value, 1, depth + 1)
+
+    # by can be css_selector / xpath / tag / name / link_text / class
+    def get_elements(self, by, value, wait=1, depth=0, single=False):
+        by = self.un_simplify(by)
+        # if the element is not found after 3 iterations return 0
+        if depth >= 2:
+            self.log("Can't find element '{0}', even after searching a long time".format(value))
+            return 0
+
+        try:
+            if single:
+                return self.driver.find_elements(by, value)[0]
+            return self.driver.find_elements(by, value)
+        except NoSuchElementException:
+            # Wait a while and try again
+            time.sleep(wait)
+            return self.get_elements(by, value, 1, depth + 1)
+
+    def get_element_in_element(self, parent_element, by, value, single=False):
+        main_driver = self.driver
+        self.driver = parent_element
+
+        result = self.get_elements(by, value, 1, 0, single)
+
+        self.driver = main_driver
+
+        return result
+
+    @staticmethod
+    def un_simplify(by):
+        if by in [By.ID, By.XPATH, By.XPATH]:
+            return by
+        elif by == 'css':
+            return By.CSS_SELECTOR
         elif by == 'tag':
-            #try to find the elements by their tag
-            elements = driver.find_elements_by_tag_name(value)
-
-        elif by == 'name':
-            #try to find the elements by their name
-            elements = driver.find_elements_by_name(value)
-                
-        elif by == 'text':
-            #try to find the elements by their text
-            elements = driver.find_elements_by_link_text(value)
-            
+            return By.TAG_NAME
+        elif by == 'text' or by == 'link_text':
+            return By.LINK_TEXT
         elif by == 'partial_text':
-            #try to find the elements by their partial link text
-            elements = driver.find_element_by_partial_link_text(value)
-      
+            return By.PARTIAL_LINK_TEXT
         elif by == 'class':
-            #try to find the elements by their value
-            elements = driver.find_elements_by_class_name(value)
-        
-        #If the elements are not found. Wait a while and try again  
-        if elements == []: 
-            
-            self.sleep(time)
-            
-            elements = self.getElements(driver, by, value, 1, depth+1)
-            
-        #return the found elements
-        return elements
-    
-    def makeMainDirs(self, id):
-        if not os.path.isdir(self.ME_folder):
-            os.makedirs(self.ME_folder, mode=0o777)
-            
-        if not os.path.isdir("{}/{}/temp".format(self.ME_folder, id)):
-            os.makedirs("{}/{}/temp".format(self.ME_folder, id), mode=0o777)
-            
-        if not os.path.isdir("{}/{}".format(self.ME_folder, id)):
-            os.makedirs("{}/{}".format(self.ME_folder, id), mode=0o777)
-        
-        if not os.path.isdir("{}/{}/samples".format(self.ME_folder, id)):
-            os.makedirs("{}/{}/samples".format(self.ME_folder, id), mode=0o777)
-              
-        if not os.path.isdir("{}/{}/chars".format(self.ME_folder, id)):
-            os.makedirs("{}/{}/chars".format(self.ME_folder, id), mode=0o777)
-            
-    def makeCharDir(self, id, charId):
-        if not os.path.isdir("{}/{}/chars/{}".format(self.ME_folder, id, charId)):
-            os.makedirs("{}/{}/chars/{}".format(self.ME_folder, id, charId), mode=0o777)
+            return By.CLASS_NAME
+        else:
+            return by
 
-    def downloadImages(self, data, id):
-        self.setDownloadDir(id)
+    def make_main_dirs(self, entry_id):
+        if not os.path.isdir(self.app_folder):
+            os.makedirs(self.app_folder, mode=0o777)
+
+        if not os.path.isdir("{}/{}/temp".format(self.app_folder, entry_id)):
+            os.makedirs("{}/{}/temp".format(self.app_folder, entry_id), mode=0o777)
+
+        if not os.path.isdir("{}/{}".format(self.app_folder, entry_id)):
+            os.makedirs("{}/{}".format(self.app_folder, entry_id), mode=0o777)
+
+        if not os.path.isdir("{}/{}/samples".format(self.app_folder, entry_id)):
+            os.makedirs("{}/{}/samples".format(self.app_folder, entry_id), mode=0o777)
+
+        if not os.path.isdir("{}/{}/chars".format(self.app_folder, entry_id)):
+            os.makedirs("{}/{}/chars".format(self.app_folder, entry_id), mode=0o777)
+
+    def make_char_dir(self, entry_id, char_id):
+        if not os.path.isdir("{}/{}/chars/{}".format(self.app_folder, entry_id, char_id)):
+            os.makedirs("{}/{}/chars/{}".format(self.app_folder, entry_id, char_id), mode=0o777)
+
+    def download_images(self, data, entry_id):
+        self.set_download_dir(entry_id)
 
         chars = data['chars']
         samples = data['samples']
 
-        root = '{}/{}'.format(self.ME_folder, id)
-        rootTemp = '{}/temp'.format(root)
+        root = '{}/{}'.format(self.app_folder, entry_id)
 
         if data['cover1'] != '':
-            self.downloadUrl(data['cover1'], '_cover_1')
+            self.download_url(data['cover1'], '_cover_1')
             data['cover1'] = '{}/_cover_1.jpg'.format(root)
         if data['cover2'] != '':
-            self.downloadUrl(data['cover2'], '_cover_2')
+            self.download_url(data['cover2'], '_cover_2')
             data['cover2'] = '{}/_cover_2.jpg'.format(root)
 
         for j, char in enumerate(chars):
-            img1 = ''
             img2 = ''
-            jUp = j + 1
+            j_up = j + 1
 
-            rootChar = '{}/chars/{}'.format(root, jUp)
+            root_char = '{}/chars/{}'.format(root, j_up)
 
-            self.makeCharDir(id, jUp)
+            self.make_char_dir(id, j_up)
 
-            self.downloadUrl(char['img1'], '__img{}.jpg'.format(jUp))
+            self.download_url(char['img1'], '__img{}.jpg'.format(j_up))
 
-            img1 = '{}/__img.jpg'.format(rootChar)
+            img1 = '{}/__img.jpg'.format(root_char)
             if char['img2'] != '' and char['img2'].split('"')[0] != '':
-                self.downloadUrl(char['img2'], 'char{}'.format(jUp))
+                self.download_url(char['img2'], 'char{}'.format(j_up))
 
-                img2 = '{}/char.jpg'.format(rootChar)
+                img2 = '{}/char.jpg'.format(root_char)
 
             data['chars'][j]['img1'] = img1
             data['chars'][j]['img2'] = img2
 
-        rootSamples = '{}/samples'.format(root)
-        newSamples = []
+        root_samples = '{}/samples'.format(root)
+        new_samples = []
         for i, sample in enumerate(samples):
-            iUp = i + 1
-            self.downloadUrl(sample, 'sample{}'.format(iUp))
+            i_up = i + 1
+            self.download_url(sample, 'sample{}'.format(i_up))
 
-            newSamples.append('{}/sample{}.jpg'.format(rootSamples, iUp))
+            new_samples.append('{}/sample{}.jpg'.format(root_samples, i_up))
 
-        data['samples'] = newSamples
+        data['samples'] = new_samples
 
-            
-    def downloadUrl(self, url, filename):
+    def download_url(self, url, filename):
         url = url.split('"')[0]
 
         if 'vndb.org' in url:
-            self.addMessage('Download url: {} to: {}'.format(url, filename))
+            self.log('Download url: {} to: {}'.format(url, filename))
 
             self.sleep(0.5)
 
             try:
                 urllib.request.urlretrieve(url, '{}/{}'.format(self.downloadFolder, filename))
-                self.addMessage('Downloaded')
+                self.log('Downloaded')
             except Exception as exc:
-                self.addMessage(exc)
+                self.log(exc)
 
                 print(type(exc))
                 print(exc.args)
@@ -319,11 +262,13 @@ class Globalvar:
 
             return
 
-    def convertToJpg(self, filePath, savePath):
-        image = Image.open(filePath)
-        image.save(savePath)
+    @staticmethod
+    def convert_to_jpg(file_path, save_path):
+        image = Image.open(file_path)
+        image.save(save_path)
 
-    def cleanString(self, string):
+    @staticmethod
+    def clean_string(string):
         string = string.replace('&amp;', '&')
         string = string.replace('&nbsp;', ' ')
         string = string.replace('&lt;', '<')
@@ -339,14 +284,14 @@ class Globalvar:
 
         return string
 
-    def cleanFolder(self, start = 'false'):
-        folder = self.ME_folder
+    def clean_folder(self, start='false'):
+        folder = self.app_folder
 
         if start == 'true':
             path = '/var/www/html/entry_images/entries/999999'
 
             if os.path.isdir(path):
-                self.cleanFolder(path)
+                self.clean_folder(path)
                 shutil.rmtree(path)
 
             for i in range(100):
@@ -354,7 +299,7 @@ class Globalvar:
                     path = '/var/www/html/entry_images/char/{}'.format(999901 + i)
 
                     if os.path.isdir(path):
-                        self.cleanFolder(path)
+                        self.clean_folder(path)
                         os.rmdir(path)
                 except:
                     continue

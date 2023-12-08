@@ -1,7 +1,7 @@
 import math
 
 from tkinter import * 
-from PIL import Image, ImageTk
+# from PIL import Image, ImageTk
 from math import floor, ceil
 
 import os
@@ -13,7 +13,7 @@ class ScrolledFrame(Frame):
         Frame.__init__(self, parent, *args, **kw)            
 
         self.top = None
-        self.id = None
+        self.vndb_id = None
         
         self.getchuCoverVar = None
         self.vndbCoverVar = None
@@ -160,15 +160,15 @@ class ScrolledFrame(Frame):
         
         original = ImageTk.PhotoImage(image1)
         
-        factorX = 300 / original.width()
-        factorY = 170 / original.height() 
-        factor = 0;
+        factor_x = 300 / original.width()
+        factor_y = 170 / original.height() 
+        factor = 0
         
-        if factorX <= factorY:
-            factor = factorX;
-        elif factorX > factorY:
-            factor = factorY
-        if factorX > 1 and factorY > 1:
+        if factor_x <= factor_y:
+            factor = factor_x
+        elif factor_x > factor_y:
+            factor = factor_y
+        if factor_x > 1 and factor_y > 1:
             factor = 1
        
         he = floor(original.height() * factor)
@@ -197,15 +197,15 @@ class ScrolledFrame(Frame):
             
             original = ImageTk.PhotoImage(image2)
             
-            factorX = 100 / original.width()
-            factorY = 70 / original.height() 
+            factor_x = 100 / original.width()
+            factor_y = 70 / original.height() 
             factor = 0;
             
-            if factorX <= factorY:
-                factor = factorX
-            elif factorX > factorY:
-                factor = factorY
-            if factorX > 1 and factorY > 1:
+            if factor_x <= factor_y:
+                factor = factor_x
+            elif factor_x > factor_y:
+                factor = factor_y
+            if factor_x > 1 and factor_y > 1:
                 factor = 1
            
             he = floor(original.height() * factor)
@@ -384,15 +384,15 @@ class ScrolledFrame(Frame):
         
         original = ImageTk.PhotoImage(image)
         
-        factorX = 150 / original.width()
-        factorY = 150 / original.height() 
+        factor_x = 150 / original.width()
+        factor_y = 150 / original.height() 
         factor = 0
         
-        if factorX <= factorY:
-            factor = factorX
-        elif factorX > factorY:
-            factor = factorY
-        if factorX > 1 and factorY > 1:
+        if factor_x <= factor_y:
+            factor = factor_x
+        elif factor_x > factor_y:
+            factor = factor_y
+        if factor_x > 1 and factor_y > 1:
             factor = 1
        
         he = floor(original.height() * factor)
@@ -473,7 +473,7 @@ class App(Tk):
         labell2.place(x=5, y=962, width=1013, height=2)             
         
     def submit(self, topData):
-        self.glv.addMessage('Submit')
+        self.glv.log('Submit')
 
         data = {}
         
@@ -533,7 +533,7 @@ class App(Tk):
                 
                 data['split'].append(self.frame2.splitEntry[i].get())
 
-        self.glv.db.connect(data, self.id)
+        self.glv.db.connect(data, self.vndb_id)
        
     def buildCharScrollFrame(self, parent, chars):
         buttons = []     
@@ -574,8 +574,8 @@ class App(Tk):
                 imgs[-1].place(x=i * 158+2, y=j * 158 + 2)                    
                 
                     
-    def fillData(self, parent, data, id):
-        self.id = id
+    def fill_data(self, parent, data, vndb_id):
+        self.vndb_id = vndb_id
         self.frame.buildLabels(parent)
         self.frame.buildTextFields(parent)
         

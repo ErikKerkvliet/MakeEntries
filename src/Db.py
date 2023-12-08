@@ -2,126 +2,126 @@ import pymysql
 import base64
 import os
 
-import logging
 from tkinter import Image
-import sys
-import time
-import traceback
-import re
 
 from sys import exit
 from PIL import Image
-from resizeimage import resizeimage
 import sys
-import time
 from math import floor
 from shutil import copyfile, rmtree
-import subprocess
 
-glv = None
 
 class DB:
 
     def __init__(self, globalvar):
-        global glv
-        glv = globalvar
+        self.glv = globalvar
 
-        glv.addMessage('Making connection with the DB')
+        self.glv.log('Making connection with the DB')
         self.password = base64.b64decode('ZmlyZWZseQ==')
         self.root = '/var/www/html/entry_images'
 
-        self.connection = pymysql.Connection(host="localhost", user="yuuichi_sagara", password=self.password, database="hcapital")
+        self.connection = pymysql.Connection(
+            host="localhost",
+            user="yuuichi_sagara",
+            password=self.password,
+            database="hcapital"
+        )
 
         if self.connection is not None:
-            glv.addMessage('Connection established')
+            self.glv.log('Connection established')
 
         self.rootEntries = ''
-        self.rootChars = ''
+        self.root_chars = ''
 
-    def checkDuplicate(self, title, romanji, browser):
-        if glv.getTest():
+    def check_duplicate(self, title, romanji, browser):
+        if self.glv.get_test():
             return
         romanji = "3-5-4-6-7" if romanji == '' else romanji
 
-        title = self.checkVarForSql(title)
-        romanji = self.checkVarForSql(romanji)
+        title = self.check_var_for_sql(title)
+        romanji = self.check_var_for_sql(romanji)
 
-        # table = 'entries' if glv.getTest() == False else 'entries_2'
+        # table = 'entries' if self.glv.get_test() == False else 'entries_2'
 
-        query = "SELECT id as rows FROM {} WHERE type = 'game' AND (title = '{}' OR romanji = '{}')".format(glv.entriesTable, title, romanji)
+        query = "SELECT id AS `rows` FROM {} WHERE type = 'game' AND (title = '{}' OR romanji = '{}')".format(
+            self.glv.entries_table,
+            title,
+            romanji
+        )
 
-        entryId = self.runQuery(query)
+        entry_id = self.run_query(query)
 
-        if entryId != 0:
-            message = 'Duplicate entry: {}'.format(entryId)
-            glv.addMessage(message, 'error', browser)
+        if entry_id != 0:
+            message = 'Duplicate entry: {}'.format(entry_id)
+            self.glv.log(message, 'error', browser)
 
             browser.quit()
 
-    def deleteAllTestRows(self):
-        queries = []
-        queries.append("DELETE FROM entries_2 WHERE id > 999899")
-        queries.append("DELETE FROM characters_2 WHERE id > 999899")
-        queries.append("DELETE FROM developers_2 WHERE id > 999899")
-        queries.append("DELETE FROM entry_characters_2 WHERE entry_id > 999899")
-        queries.append("DELETE FROM characters_2 WHERE id > 999899")
-        queries.append("DELETE FROM entry_developers_2 WHERE entry_id > 999899")
+    def delete_all_test_rows(self):
+        queries = [
+            "DELETE FROM entries_2 WHERE id > 999899", "DELETE FROM characters_2 WHERE id > 999899",
+            "DELETE FROM developers_2 WHERE id > 999899",
+            "DELETE FROM entry_characters_2 WHERE entry_id > 999899",
+            "DELETE FROM characters_2 WHERE id > 999899",
+            "DELETE FROM entry_developers_2 WHERE entry_id > 999899"
+        ]
 
         for query in queries:
-            self.runQuery(query)
+            self.run_query(query)
 
         return True
 
-    def connect(self, data, id):
-        entryId = self.submitEntryData(data)
+    def connect(self, data, vndb_id):
+        entry_id = self.submit_entry_data(data)
 
-        print('Entry has been made: {}'.format(entryId))
-        glv.addMessage('Entry has been made: {}'.format(entryId))
+        print('Entry has been made: {}'.format(entry_id))
+        self.glv.log('Entry has been made: {}'.format(entry_id))
 
         for i in range(3):
             if 'developer{}'.format(i) not in data.keys() or data['developer{}'.format(i)] == '':
                 break
 
             developer = data['developer{}'.format(i)]
-            developer = self.checkVarForSql(developer)
+            developer = self.check_var_for_sql(developer)
 
-            self.submitDevelopers(developer, entryId)
+            self.submit_developers(developer, entry_id)
 
-        glv.addMessage('Developers have been made.')
+        self.glv.log('Developers have been made.')
 
-        self.rootEntries = '{}/entries/{}'.format(self.root, entryId)
-        self.rootChars = '{}/char'.format(self.root)
+        self.rootEntries = '{}/entries/{}'.format(self.root, entry_id)
+        self.root_chars = '{}/char'.format(self.root)
 
-        self.makeDirs('info')
+        self.make_dirs('info')
         print('Directories have been created')
-        glv.addMessage('Directories have been created')
+        self.glv.log('Directories have been created')
 
-        self.moveCover(data['cover'])
+        self.move_cover(data['cover'])
         print('Cover has been moved')
-        glv.addMessage('Cover has been moved')
+        self.glv.log('Cover has been moved')
 
-        self.moveSamples(data)
+        self.move_samples(data)
         print('Samples have been moved')
-        glv.addMessage('Samples have been moved')
+        self.glv.log('Samples have been moved')
 
-        self.submitCharsData(data['chars'], entryId)
+        self.submit_chars_data(data['chars'], entry_id)
 
         print('All characters have been made')
-        glv.addMessage('All characters have been made')
+        self.glv.log('All characters have been made')
 
-        rmtree('{}/{}'.format(glv.ME_folder, id), ignore_errors=True)
+        rmtree('{}/{}'.format(self.glv.app_folder, vndb_id), ignore_errors=True)
 
         print('Temp folder has been removed')
-        glv.addMessage('Temp folder has been removed')
+        self.glv.log('Temp folder has been removed')
 
-        if glv.getTest():
-            self.editSitemap(entryId)
+        if self.glv.get_test():
+            self.edit_sitemap(entry_id)
             print('Sitemap has been edited')
-            glv.addMessage('Sitemap has been edited')
+            self.glv.log('Sitemap has been edited')
 
         sys.exit()
 
-    def checkVarForSql(self, var):
+    @staticmethod
+    def check_var_for_sql(var):
         if "'" in var:
             var = var.replace("'", "\\'")
         if '"' in var:
@@ -129,80 +129,81 @@ class DB:
 
         return var
 
-    def submitEntryData(self, data):
-        data['title'] = self.checkVarForSql(data['title'])
-        data['romanji'] = self.checkVarForSql(data['romanji'])
-        data['developer0'] = self.checkVarForSql(data['developer0'])
+    def submit_entry_data(self, data):
+        data['title'] = self.check_var_for_sql(data['title'])
+        data['romanji'] = self.check_var_for_sql(data['romanji'])
+        data['developer0'] = self.check_var_for_sql(data['developer0'])
         if 'developer1' in data.keys():
-            data['developer1'] = self.checkVarForSql(data['developer1'])
+            data['developer1'] = self.check_var_for_sql(data['developer1'])
         if 'developer2' in data.keys():
-            data['developer2'] = self.checkVarForSql(data['developer2'])
-        data['webpage'] = self.checkVarForSql(data['webpage'])
-        data['infopage'] = self.checkVarForSql(data['infopage'])
+            data['developer2'] = self.check_var_for_sql(data['developer2'])
+        data['webpage'] = self.check_var_for_sql(data['webpage'])
+        data['infopage'] = self.check_var_for_sql(data['infopage'])
 
-        table = 'entries' if glv.getTest() == False else 'entries_2'
-
-        query = "INSERT INTO {} (".format(glv.entriesTable)
+        query = "INSERT INTO {} (".format(self.glv.entries_table)
         query += "id, title, romanji, released, size, website, information, "
         query += "password, type, time_type, last_edited"
         query += ") VALUES (NULL,"
         query += "'" + data['title'] + "', "
         query += "'" + data['romanji'] + "', "
         query += "'" + data['released'] + "', "
-        query += "'', " #size
+        query += "'', "  # size
         query += "'" + data['webpage'] + "', "
         query += "'" + data['infopage'] + "', "
-        query += "'', " #password
+        query += "'', "  # password
         query += "'app', "
         query += "'upc', "
         query += "CURRENT_TIMESTAMP()) "
 
-        glv.addMessage('Inserting entry')
+        self.glv.log('Inserting entry')
 
-        return self.runQuery(query)
+        return self.run_query(query)
 
-    def submitDevelopers(self, developer, entryId):
-        # table = 'developers' if glv.getTest() == False else 'developers_2'
+    def submit_developers(self, developer, entry_id):
+        # table = 'developers' if self.glv.get_test() == False else 'developers_2'
 
-        query = "SELECT id FROM {} WHERE name = '{}' AND (type = 'game' OR type = 'app')".format(glv.developersTable, developer)
+        query = "SELECT id FROM {} WHERE name = '{}' AND (type = 'game' OR type = 'app')".format(
+            self.glv.developers_table,
+            developer
+        )
 
-        developerId = self.runQuery(query)
+        developer_id = self.run_query(query)
 
-        if developerId == 0 or developer == None:
-            # table = 'developers' if glv.getTest() == False else 'developers_2'
+        if developer_id == 0 or developer is None:
+            # table = 'developers' if self.glv.get_test() == False else 'developers_2'
 
-            query = "INSERT INTO {}".format(glv.developersTable)
+            query = "INSERT INTO {}".format(self.glv.developers_table)
             query += " (id, name, kanji, homepage, type)"
             query += " VALUES "
             query += "(NULL, '{}', '{}', '{}', '{}')".format(developer, '', '', 'game')
 
-            developerId = self.runQuery(query)
+            developer_id = self.run_query(query)
 
-        # entryDevelopersTable = 'entry_developers' if glv.getTest() == False else 'entry_developers_2'
+        # entrydevelopers_table = 'entry_developers' if self.glv.get_test() == False else 'entry_developers_2'
 
-        query = "INSERT INTO {} ".format(glv.entryDevelopersTable)
+        query = "INSERT INTO {} ".format(self.glv.entrydevelopers_table)
         query += "(entry_id, developer_id)"
         query += " VALUES "
-        query += "({}, {})".format(entryId, developerId)
+        query += "({}, {})".format(entry_id, developer_id)
 
-        self.runQuery(query)
+        self.run_query(query)
 
-    def submitCharsData(self, chars, entryId):
+    def submit_chars_data(self, chars, entry_id):
         for i, char in enumerate(chars):
-            char['name'] = self.checkVarForSql(char['name'])
-            char['romanji'] = self.checkVarForSql(char['romanji'])
+            char['name'] = self.check_var_for_sql(char['name'])
+            char['romanji'] = self.check_var_for_sql(char['romanji'])
 
-            # table = 'characters' if glv.getTest() == False else 'characters_2'
-            idColumn = '' if glv.getTest() == False else 'id,'
+            # table = 'characters' if self.glv.get_test() == False else 'characters_2'
+            id_column = '' if not self.glv.get_test() else 'id,'
             nr = 999920 + i
 
-            query = "INSERT INTO {} ".format(glv.charactersTable)
-            query += "({} name, romanji,".format(idColumn)
+            query = "INSERT INTO {} ".format(self.glv.charactersTable)
+            query += "({} name, romanji,".format(id_column)
             query += " age, gender, height, weight, cup,"
             query += " bust, waist, hips"
             query += ") VALUES ("
 
-            query += '' if glv.getTest() == False else '{},'.format(nr)
+            query += '' if not self.glv.get_test() else '{},'.format(nr)
             query += "'" + char['name'] + "', "
             query += "'" + char['romanji'] + "', "
             query += "'" + char['age'] + "', "
@@ -233,24 +234,26 @@ class DB:
             query += "'" + waist + "', "
             query += "'" + hip + "')"
 
-            characterEntries = False
+            char_id = self.run_query(query, True)
 
-            charId = self.runQuery(query, True)
+            # table = 'entry_characters' if self.glv.get_test() == False else 'entry_characters_2'
+            # characterTable = 'characters' if self.glv.get_test() == False else 'characters_2'
 
-            # table = 'entry_characters' if glv.getTest() == False else 'entry_characters_2'
-            # characterTable = 'characters' if glv.getTest() == False else 'characters_2'
+            query = "INSERT INTO {} (entry_id, character_id) VALUES ({}, {})".format(
+                self.glv.entryCharactersTable,
+                entry_id,
+                char_id
+            )
 
-            query = "INSERT INTO {} (entry_id, character_id) VALUES ({}, {})".format(glv.entryCharactersTable, entryId, charId)
-
-            result = self.runQuery(query)
+            self.run_query(query)
             
-            print('Character has been made: {}'.format(charId))
+            print('Character has been made: {}'.format(char_id))
             
-            self.moveChar(char, charId)
+            self.move_char(char, char_id)
             print('Character has been moved')
 
-    def makeDirs(self, type, path=''):
-        if type == 'info':       
+    def make_dirs(self, dir_type, path=''):
+        if dir_type == 'info':
             if not os.path.isdir('{}'.format(self.rootEntries)):
                 path = '{}'.format(self.rootEntries)
                 os.makedirs(path)
@@ -269,62 +272,62 @@ class DB:
                 os.makedirs(path)
                 os.chmod(path, 0o777)
                 
-    def moveCover(self, cover):
-        glv.addMessage('Moving cover images')
+    def move_cover(self, cover):
+        self.glv.log('Moving cover images')
 
-        rootCover = '{}/cover'.format(self.rootEntries)
+        root_cover = '{}/cover'.format(self.rootEntries)
 
-        saveLocation = '{}/_cover_m.jpg'.format(rootCover)
+        save_location = '{}/_cover_m.jpg'.format(root_cover)
 
         with open(cover, 'r+b') as f:
             with Image.open(f) as image:
-                self.resize(image, 320, 320, saveLocation, f)
+                self.resize(image, 320, 320, save_location, f)
 
-        saveLocation = '{}/_cover_l.jpg'.format(rootCover)
+        save_location = '{}/_cover_l.jpg'.format(root_cover)
 
         if cover != '':
             if os.path.exists(cover):
-                copyfile(cover, saveLocation)
+                copyfile(cover, save_location)
 
-    def moveChar(self, char, charId):
-        glv.addMessage('Moving character data')
-        rootChar = '{}/{}'.format(self.rootChars, charId)
+    def move_char(self, char, char_id):
+        self.glv.log('Moving character data')
+        root_char = '{}/{}'.format(self.root_chars, char_id)
         
-        if not os.path.isdir(rootChar):
-            self.makeDirs('char', rootChar)
+        if not os.path.isdir(root_char):
+            self.make_dirs('char', root_char)
                           
-        saveLocation = '{}/__img.jpg'.format(rootChar)
+        save_location = '{}/__img.jpg'.format(root_char)
 
         if 'img1' in char.keys() and char['img1'] != '':
             try:
                 with open(char['img1'], 'r+b') as f:
                     with Image.open(f) as image:
-                        charFace = image.resize((256, 300), Image.LANCZOS)
-                        charFace.save(saveLocation, image.format)
+                        char_face = image.resize((256, 300), Image.LANCZOS)
+                        char_face.save(save_location, image.format)
             except:
                 pass
         
         try:
             if 'img2' in char.keys() and char['img2'] != '':                        
-                saveLocation = '{}/char.jpg'.format(rootChar)
+                save_location = '{}/char.jpg'.format(root_char)
                 
                 if os.path.exists(char['img2']):
-                    copyfile(char['img2'], saveLocation)
+                    copyfile(char['img2'], save_location)
         except:
             pass
             
-    def moveSamples(self, data):
-        glv.addMessage('Moving sample images')
+    def move_samples(self, data):
+        self.glv.log('Moving sample images')
 
         samples = data['samples']
 
-        rootSamples = '{}/cg'.format(self.rootEntries)
+        root_samples = '{}/cg'.format(self.rootEntries)
 
         for i, sample in enumerate(samples):
             if i > len(samples) - 4:
-                saveLocation = '{}/_sample{}.jpg'.format(rootSamples, i)
+                save_location = '{}/_sample{}.jpg'.format(root_samples, i)
             else:
-                saveLocation = '{}/sample{}.jpg'.format(rootSamples, i)
+                save_location = '{}/sample{}.jpg'.format(root_samples, i)
 
             with open(sample, 'r+b') as f:
                 with Image.open(f) as image:
@@ -334,72 +337,71 @@ class DB:
                         height = floor(image.height / split)
 
                         for j in range(split):
-                            jUp = j+1
-                            cropped = image.crop([0, height*j, image.width, height*(jUp)])
+                            j_up = j+1
+                            cropped = image.crop([0, height * j, image.width, height * j_up])
 
-                            saveLoc = '{}/sample{}_{}.jpg'.format(rootSamples, i, jUp)
+                            save_loc = '{}/sample{}_{}.jpg'.format(root_samples, i, j_up)
 
-                            glv.addMessage('Cropping sample{}.jpg'.format(i))
-                            self.resize(cropped, 600, 600, saveLoc, f)
+                            self.glv.log('Cropping sample{}.jpg'.format(i))
+                            self.resize(cropped, 600, 600, save_loc, f)
                     else:
-                        self.resize(image, 600, 600, saveLocation, f)
-                        
-    def resize(self, image, maxX, maxY, saveLocation, filePath):
-        factor = 1
-        factorX = maxX / image.width
-        factorY = maxY / image.height
+                        self.resize(image, 600, 600, save_location, f)
 
-        if factorX <= factorY:
-            factor = factorX
-        elif factorX > factorY: 
-            factor = factorY
-        if factorX > 1 and factorY > 1:
+    @staticmethod
+    def resize(image, max_x, max_y, save_location, file_path):
+        factor = 1
+        factor_x = max_x / image.width
+        factor_y = max_y / image.height
+
+        if factor_x <= factor_y:
+            factor = factor_x
+        elif factor_x > factor_y: 
+            factor = factor_y
+        if factor_x > 1 and factor_y > 1:
             factor = 1
 
         width = floor(image.width * factor)
         height = floor(image.height * factor)
 
-        extension = saveLocation.split('.')[-1]
+        extension = save_location.split('.')[-1]
 
         if extension == 'jpg' or extension == 'jpeg':
-            command = 'convert "{0}" -crop {1}x{2}+0+0 "{3}"'.format(filePath, width, height, saveLocation)
+            command = 'convert "{0}" -crop {1}x{2}+0+0 "{3}"'.format(file_path, width, height, save_location)
 
             os.system(command)
 
         resized = image.resize((width, height), Image.LANCZOS)
-        resized.save(saveLocation, image.format)
+        resized.save(save_location, image.format)
         
-    def editSitemap(self, id):
-        glv.addMessage('Editing site map')
+    def edit_sitemap(self, entry_id):
+        self.glv.log('Editing site map')
 
-        filePath = '/var/www/html/sitemap.xml'
+        file_path = '/var/www/html/sitemap.xml'
         
-        os.system('sed -i "$ d" {0}'.format(filePath))
+        os.system('sed -i "$ d" {0}'.format(file_path))
         
         txt = "<url>"
-        txt += "<loc>http://www.hcapital.tk/?show=entry&amp;id={}</loc>".format(id)
+        txt += "<loc>http://www.hcapital.tk/?show=entry&amp;id={}</loc>".format(entry_id)
         txt += "<changefreq>daily</changefreq>"
         txt += "<priority>0.2</priority>"
         txt += "</url>\n</urlset>"
         
-        with open(filePath, 'a+') as f:
+        with open(file_path, 'a+') as f:
             f.write(txt)
 
-        glv.cleanFolder()
+        self.glv.clean_folder()
 
+    def run_query(self, query, error=False):
+        self.glv.log('\n{}\n'.format(query))
 
-
-    def runQuery(self, query, error = False):
-        glv.addMessage('\n{}\n'.format(query))
-
-        if glv.getTest():
+        if self.glv.get_test():
             query = query.replace('NULL', '999999')
 
             print(query)
 
-        queryType = query[0:6]
+        query_type = query[0:6]
 
-        if glv.getTest() and queryType == 'DELETE':
+        if self.glv.get_test() and query_type == 'DELETE':
             with self.connection.cursor() as cursor:
                 cursor.execute(query)
                 self.connection.commit()
@@ -410,19 +412,19 @@ class DB:
             with self.connection.cursor() as cursor:
                 cursor.execute(query)
 
-                if queryType == 'INSERT':
+                if query_type == 'INSERT':
                     self.connection.commit()
 
                     table = query.split(' ')[2]
-                    idQuery = 'SELECT id FROM {} ORDER BY id DESC LIMIT 1'.format(table)
-                    result = self.runQuery(idQuery)
+                    id_query = 'SELECT id FROM {} ORDER BY id DESC LIMIT 1'.format(table)
+                    result = self.run_query(id_query)
                     return result
-                elif queryType == 'SELECT':
+                elif query_type == 'SELECT':
                     result = cursor.fetchone()
 
-                    return result[0]
+                    return 0 if result is None or len(result) < 1 else result[0]
         except Exception as e:
-            glv.addMessage(e)
+            self.glv.log(e)
 
             if error:
                 return e

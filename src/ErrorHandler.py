@@ -1,6 +1,7 @@
 from tkinter import *
 import tkinter.ttk as ttk
 
+
 class ErrorHandler(Tk):
 
     def __init__(self, *args, **kwargs):
@@ -15,5 +16,5 @@ class ErrorHandler(Tk):
 
         # self.text_box.pack()
 
-    def setErrorMessage(self, message):
+    def set_error_message(self, message):
         self.text_box.insert(END, message)
