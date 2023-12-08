@@ -82,11 +82,10 @@ class Globalvar:
         return self.driver
 
     @staticmethod
-    def get_source(url):
+    def get_source():
         with open('/home/erik/test.txt', 'r+') as f:
             # f.write(source)
             line = '<html>'
-            nr = 1
             lines = []
             while line != '</html>':
                 line = f.readline().strip('\n')
@@ -103,17 +102,17 @@ class Globalvar:
 
         time.sleep(sleep)
 
-    def getElement(self, driver, by, value, time=0, depth=0):
+    def get_element_old(self, driver, by, value, wait=0, depth=0):
         original_driver = self.driver
         self.driver = driver
-        result = self.get_element(by, value, time, depth)
+        result = self.get_element(by, value, wait, depth)
         self.driver = original_driver
         return result
 
-    def getElements(self, driver, by, value, time=0, depth=0):
+    def get_elements_old(self, driver, by, value, wait=0, depth=0):
         original_driver = self.driver
         self.driver = driver
-        result = self.get_elements(by, value, time, depth)
+        result = self.get_elements(by, value, wait, depth)
         self.driver = original_driver
         return result
 

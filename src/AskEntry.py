@@ -1,5 +1,6 @@
 from tkinter import *
 
+
 class AskEntry(Tk):
 
     def __init__(self, parent, globalvar, *args, **kwargs):
@@ -23,13 +24,13 @@ class AskEntry(Tk):
         self.siteEntry.place(x=80, y=5, width=85, height=30)
         self.vndbEntry.place(x=80, y=40, width=85, height=30)
         
-        self.addBinds(self.siteEntry)
-        self.addBinds(self.vndbEntry)
+        self.add_binds(self.siteEntry)
+        self.add_binds(self.vndbEntry)
          
-        self.button = Button(root, text='Start', command=self.returnEnryNrs)
+        self.button = Button(root, text='Start', command=self.return_enry_nrs)
         self.button.place(x=5, y=75, width=160, height=30)
                  
-    def returnEnryNrs(self):
+    def return_enry_nrs(self):
         if self.siteEntry.get() == '' or self.vndbEntry.get() == '':
             return
 
@@ -46,36 +47,38 @@ class AskEntry(Tk):
    
         self.parent.askEntry.destroy()
         
-    def addBinds(self, parent):
-        parent.bind('<Button-3>', self.rClicker, add='')
+    def add_binds(self, parent):
+        parent.bind('<Button-3>', self.r_clicker, add='')
         parent.bind('<KP_Enter>', self.enter)
         parent.bind('<Return>', self.enter)
         parent.bind('<Control-a>', self.callback)
         
     def callback(self, event):
         event.widget.after(50, self.select_all, event.widget)
-        
-    def select_all(self, widget):
+
+    @staticmethod
+    def select_all(widget):
         widget.select_range(0, 'end')
         widget.icursor('end')
-    
-    def rClicker(self, e):
+
+    @staticmethod
+    def r_clicker(e):
         try:
-            def rClick_Copy(e, apnd=0):
-                e.widget.event_generate('<Control-c>')
+            def r_click_copy(event):
+                event.widget.event_generate('<Control-c>')
     
-            def rClick_Cut(e):
-                e.widget.event_generate('<Control-x>')
+            def r_click_cut(event):
+                event.widget.event_generate('<Control-x>')
     
-            def rClick_Paste(e):
-                e.widget.event_generate('<Control-v>')
+            def r_click_paste(event):
+                event.widget.event_generate('<Control-v>')
     
             e.widget.focus()
     
-            nclst=[
-                   (' Copy', lambda e=e: rClick_Copy(e)),
-                   (' Paste', lambda e=e: rClick_Paste(e)),
-                   (' Cut', lambda e=e: rClick_Cut(e)),
+            nclst = [
+                   (' Copy', lambda e=e: r_click_copy(e)),
+                   (' Paste', lambda e=e: r_click_paste(e)),
+                   (' Cut', lambda e=e: r_click_cut(e)),
                    ]
     
             rmenu = Menu(None, tearoff=0, takefocus=0)
@@ -83,7 +86,7 @@ class AskEntry(Tk):
             for (txt, cmd) in nclst:
                 rmenu.add_command(label=txt, command=cmd)
     
-            rmenu.tk_popup(e.x_root+40, e.y_root+10,entry="0")
+            rmenu.tk_popup(e.x_root+40, e.y_root+10, entry="0")
     
         except TclError:
             print(' - rClick menu, something wrong')
@@ -92,4 +95,4 @@ class AskEntry(Tk):
         return "break"
 
     def enter(self, e):
-        self.returnEnryNrs()
+        self.return_enry_nrs()

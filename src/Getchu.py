@@ -2,7 +2,7 @@ import time
 import os
 import os.path
 
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 
@@ -14,7 +14,7 @@ class Getchu:
 
     def __init__(self, globalvar):
         self.glv = globalvar
-        self.entryId = ''
+        self.getchu_id = ''
         self.pageUrl = 'http://www.getchu.com'
         self.lines = []
         self.char_nr = 0
@@ -39,7 +39,7 @@ class Getchu:
     
         return position
 
-    def get_entry_data(self, driver, id, vndb_id):
+    def get_entry_data(self, driver, getchu_id, vndb_id):
         self.glv.log('')
         self.glv.log('Getting site main data')
 
@@ -51,9 +51,9 @@ class Getchu:
             'samples': []
         }
 
-        self.entryId = id
+        self.getchu_id = getchu_id
 
-        driver.get('{}/soft.phtml?id={}'.format(self.pageUrl, self.entryId))
+        driver.get('{}/soft.phtml?id={}'.format(self.pageUrl, self.getchu_id))
         
         source = driver.page_source
         
@@ -71,11 +71,11 @@ class Getchu:
         
         time.sleep(2)
         
-        url = '{}/soft.phtml?id={}'.format(self.pageUrl, self.entryId)
+        url = '{}/soft.phtml?id={}'.format(self.pageUrl, self.getchu_id)
         
         delay = 5  # seconds
         try:
-            WebDriverWait(driver, delay).until(EC.presence_of_element_located((By.CLASS_NAME, 'chara-name')))
+            WebDriverWait(driver, delay).until(ec.presence_of_element_located((By.CLASS_NAME, 'chara-name')))
             print("Page is ready!")
         except TimeoutException:
             print("Loading took too much time!")
@@ -92,7 +92,7 @@ class Getchu:
 
         data['infopage'] = url
         
-        data['cover'] = '{}/brandnew/{}/c{}package.png'.format(self.pageUrl, self.entryId, self.entryId)
+        data['cover'] = '{}/brandnew/{}/c{}package.png'.format(self.pageUrl, self.getchu_id, self.getchu_id)
         
         a_s = self.glv.get_elements('tag', 'a')
 
@@ -262,7 +262,7 @@ class Getchu:
 
             try:
                 WebDriverWait(driver, 1).until(
-                    EC.presence_of_element_located((By.TAG_NAME, 'img')))
+                    ec.presence_of_element_located((By.TAG_NAME, 'img')))
             except TimeoutException:
                 print("Loading took too much time!")
 

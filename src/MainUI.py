@@ -11,8 +11,6 @@ class MainUI:
         self.glv.log('close')
         sys.exit()
 
-        raise ValueError('Finished.')
-
     def __init__(self, globalvar):
         self.glv = globalvar
 

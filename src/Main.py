@@ -17,20 +17,23 @@ import re
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
+
 class Main:
-    
-    def exit(self):
+    @staticmethod
+    def exit():
         print('close')
         sys.exit()
 
-    def __init__(self, driver):
+    def __init__(self, browser):
         self.glv = Globalvar()
-        self.glv.driver = driver
+        self.glv.driver = browser
+        self.vndb_id = None
+        self.site_id = None
         logging.basicConfig(filename='{}/log.txt'.format(self.glv.app_folder), level=logging.ERROR)
 
     def start(self):
-        self.vndbId = '46979'
-        self.siteId = '273165'
+        self.vndb_id = '46979'
+        self.site_id = '273165'
 
         self.glv.set_test(False)
         self.glv.set_tables()
@@ -40,17 +43,16 @@ class Main:
 
         vndb = Vndb(self.glv)
 
-
         resolution = self.glv.get_screen_resolution()
-        locX = resolution[0] - 220
-        locY = resolution[1] - 190
+        loc_x = resolution[0] - 220
+        loc_y = resolution[1] - 190
 
         self.glv.log('Getting entry nrs.')
 
         # self.askEntry = AskEntry(self, self.glv)
         # self.askEntry.title('Entry nrs.')
         #
-        # self.askEntry.geometry("170x109+{}+{}".format(locX, locY))
+        # self.askEntry.geometry("170x109+{}+{}".format(loc_x, loc_y))
         # self.askEntry.wm_attributes("-topmost", 1)
         #
         # self.askEntry.protocol("WM_DELETE_WINDOW", lambda:self.exit())
@@ -65,22 +67,22 @@ class Main:
         #
         # self.askEntry.mainloop()
 
-        self.glv.log('Url vndb: {}'.format(self.vndbId))
-        self.glv.log('Url getchu: {}'.format(self.siteId))
+        self.glv.log('Url vndb: {}'.format(self.vndb_id))
+        self.glv.log('Url getchu: {}'.format(self.site_id))
 
-        if 'R' in self.siteId or 'V' in self.siteId:
+        if 'R' in self.site_id or 'V' in self.site_id:
             site = DlSite(self.glv)
         else:
-            self.vndbId = re.sub("\D", "", self.vndbId)
-            self.siteId = re.sub("\D", "", self.siteId)
+            self.vndb_id = re.sub("\D", "", self.vndb_id)
+            self.site_id = re.sub("\D", "", self.site_id)
             
             site = Getchu(self.glv)
 
-        self.glv.make_main_dirs(self.vndbId)
+        self.glv.make_main_dirs(self.vndb_id)
 
         options = Options()
         options.add_experimental_option("prefs", {
-            "download.default_directory": '{}/{}/temp'.format(self.glv.app_folder, self.vndbId),
+            "download.default_directory": '{}/{}/temp'.format(self.glv.app_folder, self.vndb_id),
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing.enabled": True
@@ -94,17 +96,17 @@ class Main:
 
         self.glv.log('=============================================================')
 
-        dataVndb = vndb.get_entry_data(self.glv.driver, self.vndbId)
+        data_vndb = vndb.get_entry_data(self.glv.driver, self.vndb_id)
 
-        if dataVndb['title'] == '' and dataVndb['romanji'] != '':
-            dataVndb['title'] = dataVndb['romanji']
-            dataVndb['romanji'] = ''
+        if data_vndb['title'] == '' and data_vndb['romanji'] != '':
+            data_vndb['title'] = data_vndb['romanji']
+            data_vndb['romanji'] = ''
 
-        self.glv.db.check_duplicate(dataVndb['title'], dataVndb['romanji'], self.glv.driver)
+        self.glv.db.check_duplicate(data_vndb['title'], data_vndb['romanji'], self.glv.driver)
 
-        charsVndb = vndb.get_char_data(self.glv.driver)
+        chars_vndb = vndb.get_char_data(self.glv.driver)
 
-        for char in charsVndb['chars']:
+        for char in chars_vndb['chars']:
             self.glv.log('-------------------------------------------------------------')
             self.glv.log('Name: {}'.format(char['name']))
             self.glv.log('Romanji: {}'.format(char['romanji']))
@@ -116,28 +118,29 @@ class Main:
             self.glv.log('Cup: {}'.format(char['cup']))
             self.glv.log('Image 1: {}'.format(char['img1']))
 
-        dataVndb = {**dataVndb, **charsVndb}
+        data_vndb = {**data_vndb, **chars_vndb}
 
         self.glv.log('')
         self.glv.log('=============================================================')
 
         self.glv.log('Getting site data')
-        dataSite = site.get_entry_data(self.glv.driver, self.siteId, self.vndbId)
+        data_site = site.get_entry_data(self.glv.driver, self.site_id, self.vndb_id)
 
         chars = []
          
-        data = {}
-        data['title'] = dataVndb['title']
-        data['romanji'] = dataVndb['romanji']
-        data['developer0'] = dataVndb['developer0']
-        data['developer1'] = dataVndb['developer1']
-        data['developer2'] = dataVndb['developer2']
-        data['webpage'] = dataVndb['webpage']
-        data['infopage'] = dataSite['infopage']
-        data['cover1'] = dataSite['cover']
-        data['cover2'] = dataVndb['cover']
-        data['released'] = dataSite['released']
-        data['samples'] = dataSite['samples']
+        data = {
+            'title': data_vndb['title'],
+            'romanji': data_vndb['romanji'],
+            'developer0': data_vndb['developer0'],
+            'developer1': data_vndb['developer1'],
+            'developer2': data_vndb['developer2'],
+            'webpage': data_vndb['webpage'],
+            'infopage': data_site['infopage'],
+            'cover1': data_site['cover'],
+            'cover2': data_vndb['cover'],
+            'released': data_site['released'],
+            'samples': data_site['samples']
+        }
 
         for value in data:
             if isinstance(data[value], str):
@@ -155,7 +158,7 @@ class Main:
         self.glv.log('released: {}'.format(data['released']))
 
         done = []
-        for site in dataSite['chars']:
+        for site in data_site['chars']:
             chars.append({})
             name = site['name'].replace(' ', '').replace('　', '')
             done.append(name)
@@ -170,7 +173,7 @@ class Main:
             chars[-1]['img1'] = site['img1']
             chars[-1]['img2'] = site['img2']   
         
-        for vndb in dataVndb['chars']:
+        for vndb in data_vndb['chars']:
             name = vndb['name'].replace(' ', '').replace('　', '')
             if name not in done:
                 chars.append({})
@@ -211,18 +214,18 @@ class Main:
 
         self.glv.log('Downloading images')
 
-        self.glv.download_images(data, self.vndbId)
+        self.glv.download_images(data, self.vndb_id)
         time.sleep(2)
         import os
         from os.path import isfile, join
 
-        root = '{}/{}'.format(self.glv.app_folder, self.vndbId)
-        rootTemp = '{}/temp'.format(root)
+        root = '{}/{}'.format(self.glv.app_folder, self.vndb_id)
+        root_temp = '{}/temp'.format(root)
 
-        files = [f for f in os.listdir(rootTemp) if isfile(join(rootTemp, f))]
+        files = [f for f in os.listdir(root_temp) if isfile(join(root_temp, f))]
 
-        sampleNr = 0
-        moveTo = ''
+        sample_nr = 0
+        move_to = ''
 
         nrs = []
         for f in files:
@@ -238,30 +241,30 @@ class Main:
                 continue
 
             name = f.replace('.jpg', '')
-            old_file = '{}/{}.jpg'.format(rootTemp, name)
+            old_file = '{}/{}.jpg'.format(root_temp, name)
 
             if 'package' in f or '_cover_1' in f:
-                moveTo = '{}/_cover_1.jpg'.format(root)
+                move_to = '{}/_cover_1.jpg'.format(root)
 
             elif '_cover_2' in f:
-                old_file = '{}/{}'.format(rootTemp, name)
-                moveTo = '{}/_cover_2.jpg'.format(root)
+                old_file = '{}/{}'.format(root_temp, name)
+                move_to = '{}/_cover_2.jpg'.format(root)
 
             elif 'sample' in f or 'table' in f:
-                sampleNr += 1
-                moveTo = '{}/samples/sample{}.jpg'.format(root, sampleNr)
+                sample_nr += 1
+                move_to = '{}/samples/sample{}.jpg'.format(root, sample_nr)
 
             elif 'char' in f:
                 number = re.sub("[^0-9]", "", f)
                 nr = int(number)
-                moveTo = '{}/chars/{}/char.jpg'.format(root, nr)
+                move_to = '{}/chars/{}/char.jpg'.format(root, nr)
 
             elif '__img' in f:
                 number = re.sub("[^0-9]", "", f)
                 nr = int(number)
-                moveTo = '{}/chars/{}/__img.jpg'.format(root, nr)
+                move_to = '{}/chars/{}/__img.jpg'.format(root, nr)
 
-            command = 'mv {} {}'.format(old_file, moveTo)
+            command = 'mv {} {}'.format(old_file, move_to)
 
             self.glv.log(command)
 
@@ -272,7 +275,7 @@ class Main:
                 self.glv.log(e)
                 continue
 
-        root_samples = '{}/{}/samples'.format(self.glv.app_folder, self.vndbId)
+        root_samples = '{}/{}/samples'.format(self.glv.app_folder, self.vndb_id)
         files = [f for f in os.listdir(root_samples) if isfile(join(root_samples, f))]
 
         samples = []
@@ -286,7 +289,7 @@ class Main:
 
         ui = MainUI(self.glv)
 
-        ui.fill_data(data, self.vndbId)
+        ui.fill_data(data, self.vndb_id)
         
         ui.do_loop()
 
@@ -304,12 +307,12 @@ exit()
 #     main.glv.log(e)
 #
 #     resolution = main.glv.get_screen_resolution()
-#     locX = int(resolution[0] / 2) - 250
-#     locY = 100
+#     loc_x = int(resolution[0] / 2) - 250
+#     loc_y = 100
 #
 #     error = ErrorHandler()
 #     error.title('Action log')
-#     error.geometry("827x522+{}+{}".format(locX, locY))
+#     error.geometry("827x522+{}+{}".format(loc_x, loc_y))
 #
 #     error.set_error_message(main.glv.errorMessage)
 #     error.resizable(False, False)

@@ -31,7 +31,7 @@ class DlSite:
         site_check = self.glv.get_element('class', 'btn_yes')
         
         if site_check:
-            a = self.glv.getElement(site_check, 'tag', 'a')
+            a = self.glv.get_element_old(site_check, 'tag', 'a')
             a.click()
         
         self.glv.sleep(3)
@@ -40,10 +40,10 @@ class DlSite:
         
         slider = self.glv.get_element('class', 'slider_items')
         
-        lis = self.glv.getElements(slider, 'tag', 'li')
+        lis = self.glv.get_elements_old(slider, 'tag', 'li')
         
         for li in lis:
-            img = self.glv.getElement(li, 'tag', 'img')
+            img = self.glv.get_element_old(li, 'tag', 'img')
             
             if img == 0:
                 continue
@@ -56,9 +56,9 @@ class DlSite:
         table = self.glv.get_element('id', 'work_outline')
         
         if table:
-            td = self.glv.getElement(table, 'tag', 'td')
+            td = self.glv.get_element_old(table, 'tag', 'td')
             if td:
-                a = self.glv.getElement(td, 'tag', 'a')
+                a = self.glv.get_element_old(td, 'tag', 'a')
                 if a:
                     date = a.get_attribute('innerHTML')
                     
