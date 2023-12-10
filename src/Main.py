@@ -25,6 +25,7 @@ class Main:
         sys.exit()
 
     def __init__(self, browser):
+        self.ask_entry = None
         self.glv = Globalvar()
         self.glv.driver = browser
         self.vndb_id = None
@@ -32,8 +33,8 @@ class Main:
         logging.basicConfig(filename='{}/log.txt'.format(self.glv.app_folder), level=logging.ERROR)
 
     def start(self):
-        self.vndb_id = '46979'
-        self.site_id = '273165'
+        self.vndb_id = '0'
+        self.site_id = '0'
 
         self.glv.set_test(False)
         self.glv.set_tables()
@@ -49,23 +50,23 @@ class Main:
 
         self.glv.log('Getting entry nrs.')
 
-        # self.askEntry = AskEntry(self, self.glv)
-        # self.askEntry.title('Entry nrs.')
-        #
-        # self.askEntry.geometry("170x109+{}+{}".format(loc_x, loc_y))
-        # self.askEntry.wm_attributes("-topmost", 1)
-        #
-        # self.askEntry.protocol("WM_DELETE_WINDOW", lambda:self.exit())
-        #
-        # try:
-        #     img = Image("photo", file="icon.gif")
-        #     self.askEntry.call('wm','iconphoto', self.askEntry, img)
-        # except:
-        #     pass
-        #
-        # self.askEntry.resizable(False, False)
-        #
-        # self.askEntry.mainloop()
+        self.ask_entry = AskEntry(self, self.glv)
+        self.ask_entry.title('Entry nrs.')
+
+        self.ask_entry.geometry("170x109+{}+{}".format(loc_x, loc_y))
+        self.ask_entry.wm_attributes("-topmost", 1)
+
+        self.ask_entry.protocol("WM_DELETE_WINDOW", lambda:self.exit())
+
+        try:
+            img = Image("photo", file="icon.gif")
+            self.ask_entry.call('wm','iconphoto', self.ask_entry, img)
+        except:
+            pass
+
+        self.ask_entry.resizable(False, False)
+
+        self.ask_entry.mainloop()
 
         self.glv.log('Url vndb: {}'.format(self.vndb_id))
         self.glv.log('Url getchu: {}'.format(self.site_id))
@@ -258,11 +259,13 @@ class Main:
                 number = re.sub("[^0-9]", "", f)
                 nr = int(number)
                 move_to = '{}/chars/{}/char.jpg'.format(root, nr)
+                self.glv.make_char_dir(self.vndb_id, nr)
 
             elif '__img' in f:
                 number = re.sub("[^0-9]", "", f)
                 nr = int(number)
                 move_to = '{}/chars/{}/__img.jpg'.format(root, nr)
+                self.glv.make_char_dir(self.vndb_id, nr)
 
             command = 'mv {} {}'.format(old_file, move_to)
 

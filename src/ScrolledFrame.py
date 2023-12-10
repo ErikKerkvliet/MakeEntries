@@ -1,11 +1,13 @@
 import math
 
-from tkinter import * 
-# from PIL import Image, ImageTk
+from tkinter import *
+from PIL import Image, ImageTk
 from math import floor, ceil
+import subprocess
 
 import os
 
+glv = None
 
 class ScrolledFrame(Frame):
 
@@ -252,7 +254,7 @@ class ScrolledFrame(Frame):
         width = photo.width() + 4
         height = photo.height() + 4
         
-        resolution = self.parent.glv.get_screen_resolution()
+        resolution = self.get_screen_resolution()
         loc_x = resolution[0] / 2 - width / 2
         loc_y = resolution[1] / 2 - height / 2
         
@@ -439,12 +441,21 @@ class ScrolledFrame(Frame):
         
         return sample
 
+    @staticmethod
+    def get_screen_resolution():
+        output = subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',
+                                  shell=True,
+                                  stdout=subprocess.PIPE
+                                  ).communicate()[0]
+        resolution = output.split()[0].split(b'x')
+        return [int(resolution[0]), int(resolution[1])]
+
 
 class App(Tk):
-    def __init__(self, glovalvar, *args, **kwargs):
+    def __init__(self, glv, *args, **kwargs):
         root = Tk.__init__(self, *args, **kwargs)
 
-        self.glv = glovalvar
+        self.glv = glv
 
         self.frame = ScrolledFrame(root, 98, relief='sunken')
         self.frame.pack()

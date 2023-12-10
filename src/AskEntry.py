@@ -34,18 +34,10 @@ class AskEntry(Tk):
         if self.siteEntry.get() == '' or self.vndbEntry.get() == '':
             return
 
-        self.parent.siteId = self.siteEntry.get()
-        self.parent.vndbId = self.vndbEntry.get()
-          
-        self.siteLabel.destroy()
-        self.vndbLabel.destroy()
-         
-        self.siteEntry.destroy()
-        self.vndbEntry.destroy()
-         
-        self.button.destroy()
-   
-        self.parent.askEntry.destroy()
+        self.parent.site_id = self.siteEntry.get()
+        self.parent.vndb_id = self.vndbEntry.get()
+
+        self.parent.ask_entry.destroy()
         
     def add_binds(self, parent):
         parent.bind('<Button-3>', self.r_clicker, add='')
@@ -76,9 +68,9 @@ class AskEntry(Tk):
             e.widget.focus()
     
             nclst = [
-                   (' Copy', lambda e=e: r_click_copy(e)),
-                   (' Paste', lambda e=e: r_click_paste(e)),
-                   (' Cut', lambda e=e: r_click_cut(e)),
+                   (' Copy', lambda event=e: r_click_copy(e)),
+                   (' Paste', lambda event=e: r_click_paste(e)),
+                   (' Cut', lambda event=e: r_click_cut(e)),
                    ]
     
             rmenu = Menu(None, tearoff=0, takefocus=0)

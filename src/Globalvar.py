@@ -27,10 +27,10 @@ class Globalvar:
         self.character = 9999999
 
         self.entries_table = None
-        self.charactersTable = None
+        self.characters_table = None
         self.developers_table = None
-        self.entryCharactersTable = None
-        self.entrydevelopers_table = None
+        self.entry_characters_table = None
+        self.entry_developers_table = None
         self.driver = None
 
     def set_test(self, state):
@@ -47,10 +47,10 @@ class Globalvar:
 
     def set_tables(self):
         self.entries_table = 'entries' if not self.test else 'entries_2'
-        self.charactersTable = 'characters' if not self.test else 'characters_2'
+        self.characters_table = 'characters' if not self.test else 'characters_2'
         self.developers_table = 'developers' if not self.test else 'developers_2'
-        self.entryCharactersTable = 'entry_characters' if not self.test else 'entry_characters_2'
-        self.entrydevelopers_table = 'entry_developers' if not self.test else 'entry_developers_2'
+        self.entry_characters_table = 'entry_characters' if not self.test else 'entry_characters_2'
+        self.entry_developers_table = 'entry_developers' if not self.test else 'entry_developers_2'
 
     def log(self, message, log_type='message', browser=None):
         message = str(message)

@@ -30,7 +30,7 @@ class DB:
         if self.connection is not None:
             self.glv.log('Connection established')
 
-        self.rootEntries = ''
+        self.root_entries = ''
         self.root_chars = ''
 
     def check_duplicate(self, title, romanji, browser):
@@ -88,7 +88,7 @@ class DB:
 
         self.glv.log('Developers have been made.')
 
-        self.rootEntries = '{}/entries/{}'.format(self.root, entry_id)
+        self.root_entries = '{}/entries/{}'.format(self.root, entry_id)
         self.root_chars = '{}/char'.format(self.root)
 
         self.make_dirs('info')
@@ -179,9 +179,9 @@ class DB:
 
             developer_id = self.run_query(query)
 
-        # entrydevelopers_table = 'entry_developers' if self.glv.get_test() == False else 'entry_developers_2'
+        # entry_developers_table = 'entry_developers' if self.glv.get_test() == False else 'entry_developers_2'
 
-        query = "INSERT INTO {} ".format(self.glv.entrydevelopers_table)
+        query = "INSERT INTO {} ".format(self.glv.entry_developers_table)
         query += "(entry_id, developer_id)"
         query += " VALUES "
         query += "({}, {})".format(entry_id, developer_id)
@@ -197,7 +197,7 @@ class DB:
             id_column = '' if not self.glv.get_test() else 'id,'
             nr = 999920 + i
 
-            query = "INSERT INTO {} ".format(self.glv.charactersTable)
+            query = "INSERT INTO {} ".format(self.glv.characters_table)
             query += "({} name, romanji,".format(id_column)
             query += " age, gender, height, weight, cup,"
             query += " bust, waist, hips"
@@ -240,7 +240,7 @@ class DB:
             # characterTable = 'characters' if self.glv.get_test() == False else 'characters_2'
 
             query = "INSERT INTO {} (entry_id, character_id) VALUES ({}, {})".format(
-                self.glv.entryCharactersTable,
+                self.glv.entry_characters_table,
                 entry_id,
                 char_id
             )
@@ -254,16 +254,16 @@ class DB:
 
     def make_dirs(self, dir_type, path=''):
         if dir_type == 'info':
-            if not os.path.isdir('{}'.format(self.rootEntries)):
-                path = '{}'.format(self.rootEntries)
+            if not os.path.isdir('{}'.format(self.root_entries)):
+                path = '{}'.format(self.root_entries)
                 os.makedirs(path)
                 os.chmod(path, 0o777)
-            if not os.path.isdir('{}/cg'.format(self.rootEntries)):
-                path = '{}/cg'.format(self.rootEntries)
+            if not os.path.isdir('{}/cg'.format(self.root_entries)):
+                path = '{}/cg'.format(self.root_entries)
                 os.makedirs(path)
                 os.chmod(path, 0o777)
-            if not os.path.isdir('{}/cover'.format(self.rootEntries)):
-                path = '{}/cover'.format(self.rootEntries)
+            if not os.path.isdir('{}/cover'.format(self.root_entries)):
+                path = '{}/cover'.format(self.root_entries)
                 os.makedirs(path)
                 os.chmod(path, 0o777)
         elif type == 'char':
@@ -275,7 +275,7 @@ class DB:
     def move_cover(self, cover):
         self.glv.log('Moving cover images')
 
-        root_cover = '{}/cover'.format(self.rootEntries)
+        root_cover = '{}/cover'.format(self.root_entries)
 
         save_location = '{}/_cover_m.jpg'.format(root_cover)
 
@@ -321,7 +321,7 @@ class DB:
 
         samples = data['samples']
 
-        root_samples = '{}/cg'.format(self.rootEntries)
+        root_samples = '{}/cg'.format(self.root_entries)
 
         for i, sample in enumerate(samples):
             if i > len(samples) - 4:
