@@ -92,12 +92,12 @@ class Vndb:
 
         return data
 
-    def get_char_data(self, driver):
+    def get_char_data(self):
         self.glv.log('')
         self.glv.log('Getting character data')
 
         data = {}
-        driver.get('{}/v{}/chars#chars'.format(self.pageUrl, self.entry_id))
+        self.glv.driver.get('{}/v{}/chars#chars'.format(self.pageUrl, self.entry_id))
 
         theads = self.glv.get_elements('tag', 'thead')
         tds = self.glv.get_elements('tag', 'td')

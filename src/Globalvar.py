@@ -18,10 +18,11 @@ class Globalvar:
         self.errorMessage = 'Start\n'
         self.db = DB(self)
         self.connection = self.db.connection
-        self.home = os.path.expanduser('~')
+        self.home = '/home/erik'  # os.path.expanduser('~')
         self.app_folder = '{}/MakeEntries'.format(self.home)
+        self.img_folder = '{}/entry_images'.format(self.app_folder)
         self.downloadFolder = ''
-        self.id = 0
+        self.entry_id = None
         self.test = False
         self.developer = 9999999
         self.character = 9999999
@@ -69,8 +70,8 @@ class Globalvar:
         resolution = output.split()[0].split(b'x')
         return [int(resolution[0]), int(resolution[1])]
 
-    def set_download_dir(self, entry_id):
-        self.downloadFolder = '{}/{}/temp'.format(self.app_folder, entry_id)
+    def set_download_dir(self, vndb_id):
+        self.downloadFolder = '{}/{}/temp'.format(self.app_folder, vndb_id)
 
     def get_download_dir(self):
         return self.downloadFolder
@@ -175,33 +176,34 @@ class Globalvar:
         else:
             return by
 
-    def make_main_dirs(self, entry_id):
+    def make_main_dirs(self, vndb_id):
         if not os.path.isdir(self.app_folder):
-            os.makedirs(self.app_folder, mode=0o777)
+            os.makedirs(self.app_folder, mode=0o7777)
 
-        if not os.path.isdir("{}/{}/temp".format(self.app_folder, entry_id)):
-            os.makedirs("{}/{}/temp".format(self.app_folder, entry_id), mode=0o777)
+        if not os.path.isdir("{}/{}/temp".format(self.app_folder, vndb_id)):
+            os.makedirs("{}/{}/temp".format(self.app_folder, vndb_id), mode=0o7777)
 
-        if not os.path.isdir("{}/{}".format(self.app_folder, entry_id)):
-            os.makedirs("{}/{}".format(self.app_folder, entry_id), mode=0o777)
+        if not os.path.isdir("{}/{}".format(self.app_folder, vndb_id)):
+            os.makedirs("{}/{}".format(self.app_folder, vndb_id), mode=0o7777)
 
-        if not os.path.isdir("{}/{}/samples".format(self.app_folder, entry_id)):
-            os.makedirs("{}/{}/samples".format(self.app_folder, entry_id), mode=0o777)
+        if not os.path.isdir("{}/{}/samples".format(self.app_folder, vndb_id)):
+            os.makedirs("{}/{}/samples".format(self.app_folder, vndb_id), mode=0o7777)
 
-        if not os.path.isdir("{}/{}/chars".format(self.app_folder, entry_id)):
-            os.makedirs("{}/{}/chars".format(self.app_folder, entry_id), mode=0o777)
+        if not os.path.isdir("{}/{}/chars".format(self.app_folder, vndb_id)):
+            os.makedirs("{}/{}/chars".format(self.app_folder, vndb_id), mode=0o7777)
 
-    def make_char_dir(self, entry_id, char_id):
-        if not os.path.isdir("{}/{}/chars/{}".format(self.app_folder, entry_id, char_id)):
-            os.makedirs("{}/{}/chars/{}".format(self.app_folder, entry_id, char_id), mode=0o777)
+    def make_char_dir(self, vndb_id, char_id):
+        folder = "{}/{}/chars/{}".format(self.app_folder, vndb_id, char_id)
+        if not os.path.isdir(folder):
+            os.makedirs("{}/{}/chars/{}".format(self.app_folder, vndb_id, char_id), mode=0o7777)
 
-    def download_images(self, data, entry_id):
-        self.set_download_dir(entry_id)
+    def download_images(self, data, vndb_id):
+        self.set_download_dir(vndb_id)
 
         chars = data['chars']
         samples = data['samples']
 
-        root = '{}/{}'.format(self.app_folder, entry_id)
+        root = '{}/{}'.format(self.app_folder, vndb_id)
 
         if data['cover1'] != '':
             self.download_url(data['cover1'], '_cover_1')
@@ -216,7 +218,7 @@ class Globalvar:
 
             root_char = '{}/chars/{}'.format(root, j_up)
 
-            self.make_char_dir(id, j_up)
+            self.make_char_dir(vndb_id, j_up)
 
             self.download_url(char['img1'], '__img{}.jpg'.format(j_up))
 
@@ -287,7 +289,7 @@ class Globalvar:
         folder = self.app_folder
 
         if start == 'true':
-            path = '/var/www/html/entry_images/entries/999999'
+            path = '/var/www/Hcapital/entry_images/entries/999999'
 
             if os.path.isdir(path):
                 self.clean_folder(path)
@@ -295,7 +297,7 @@ class Globalvar:
 
             for i in range(100):
                 try:
-                    path = '/var/www/html/entry_images/char/{}'.format(999901 + i)
+                    path = '/var/www/Hcapital/entry_images/char/{}'.format(999901 + i)
 
                     if os.path.isdir(path):
                         self.clean_folder(path)

@@ -18,7 +18,7 @@ class DB:
 
         self.glv.log('Making connection with the DB')
         self.password = base64.b64decode('ZmlyZWZseQ==')
-        self.root = '/var/www/html/entry_images'
+        self.root = '/var/www/Hcapital/entry_images'
 
         self.connection = pymysql.Connection(
             host="localhost",
@@ -73,8 +73,8 @@ class DB:
 
     def connect(self, data, vndb_id):
         entry_id = self.submit_entry_data(data)
+        self.glv.entry_id = entry_id
 
-        print('Entry has been made: {}'.format(entry_id))
         self.glv.log('Entry has been made: {}'.format(entry_id))
 
         for i in range(3):
@@ -92,25 +92,20 @@ class DB:
         self.root_chars = '{}/char'.format(self.root)
 
         self.make_dirs('info')
-        print('Directories have been created')
         self.glv.log('Directories have been created')
 
         self.move_cover(data['cover'])
-        print('Cover has been moved')
         self.glv.log('Cover has been moved')
 
         self.move_samples(data)
-        print('Samples have been moved')
         self.glv.log('Samples have been moved')
 
         self.submit_chars_data(data['chars'], entry_id)
 
-        print('All characters have been made')
         self.glv.log('All characters have been made')
 
         rmtree('{}/{}'.format(self.glv.app_folder, vndb_id), ignore_errors=True)
 
-        print('Temp folder has been removed')
         self.glv.log('Temp folder has been removed')
 
         if self.glv.get_test():
@@ -257,20 +252,20 @@ class DB:
             if not os.path.isdir('{}'.format(self.root_entries)):
                 path = '{}'.format(self.root_entries)
                 os.makedirs(path)
-                os.chmod(path, 0o777)
+                os.chmod(path, 0o7777)
             if not os.path.isdir('{}/cg'.format(self.root_entries)):
                 path = '{}/cg'.format(self.root_entries)
                 os.makedirs(path)
-                os.chmod(path, 0o777)
+                os.chmod(path, 0o7777)
             if not os.path.isdir('{}/cover'.format(self.root_entries)):
                 path = '{}/cover'.format(self.root_entries)
                 os.makedirs(path)
-                os.chmod(path, 0o777)
+                os.chmod(path, 0o7777)
         elif type == 'char':
             if not os.path.isdir(path):
                 path = path
                 os.makedirs(path)
-                os.chmod(path, 0o777)
+                os.chmod(path, 0o7777)
                 
     def move_cover(self, cover):
         self.glv.log('Moving cover images')
@@ -281,7 +276,7 @@ class DB:
 
         with open(cover, 'r+b') as f:
             with Image.open(f) as image:
-                self.resize(image, 320, 320, save_location, f)
+                self.resize(image, 320, 320, save_location, cover)
 
         save_location = '{}/_cover_l.jpg'.format(root_cover)
 
@@ -343,9 +338,9 @@ class DB:
                             save_loc = '{}/sample{}_{}.jpg'.format(root_samples, i, j_up)
 
                             self.glv.log('Cropping sample{}.jpg'.format(i))
-                            self.resize(cropped, 600, 600, save_loc, f)
+                            self.resize(cropped, 600, 600, save_loc, sample)
                     else:
-                        self.resize(image, 600, 600, save_location, f)
+                        self.resize(image, 600, 600, save_location, sample)
 
     @staticmethod
     def resize(image, max_x, max_y, save_location, file_path):
@@ -376,7 +371,7 @@ class DB:
     def edit_sitemap(self, entry_id):
         self.glv.log('Editing site map')
 
-        file_path = '/var/www/html/sitemap.xml'
+        file_path = '/var/www/Hcapital/sitemap.xml'
         
         os.system('sed -i "$ d" {0}'.format(file_path))
         

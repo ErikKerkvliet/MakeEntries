@@ -4,13 +4,13 @@ from Dlsite import DlSite
 from Globalvar import Globalvar
 from AskEntry import AskEntry
 from MainUI import MainUI
+from Links import Links
 from ErrorHandler import ErrorHandler
 
 import logging
 from tkinter import Image 
 import sys
 import time
-import traceback
 import re
 
 
@@ -24,15 +24,27 @@ class Main:
         print('close')
         sys.exit()
 
-    def __init__(self, browser):
+    def __init__(self, app_type=''):
         self.ask_entry = None
         self.glv = Globalvar()
-        self.glv.driver = browser
         self.vndb_id = None
         self.site_id = None
         logging.basicConfig(filename='{}/log.txt'.format(self.glv.app_folder), level=logging.ERROR)
 
-    def start(self):
+        screen_resolution = self.glv.get_screen_resolution()
+
+        if app_type == 'links':
+            x_loc = screen_resolution[0] - 1300
+            y_loc = screen_resolution[1] - 1200
+
+            link = Links(self.glv)
+            link.geometry(f'800x500+{x_loc}+{y_loc}')
+            link.wm_attributes("-topmost", 1)
+            link.protocol("WM_DELETE_WINDOW", lambda: self.exit())
+            link.mainloop()
+
+            self.exit()
+
         self.vndb_id = '0'
         self.site_id = '0'
 
@@ -44,24 +56,24 @@ class Main:
 
         vndb = Vndb(self.glv)
 
-        resolution = self.glv.get_screen_resolution()
-        loc_x = resolution[0] - 220
-        loc_y = resolution[1] - 190
+        x_loc = screen_resolution[0] - 820
+        y_loc = screen_resolution[1] - 190
 
         self.glv.log('Getting entry nrs.')
 
         self.ask_entry = AskEntry(self, self.glv)
         self.ask_entry.title('Entry nrs.')
 
-        self.ask_entry.geometry("170x109+{}+{}".format(loc_x, loc_y))
+        self.ask_entry.geometry("170x109+{}+{}".format(x_loc, y_loc))
         self.ask_entry.wm_attributes("-topmost", 1)
 
-        self.ask_entry.protocol("WM_DELETE_WINDOW", lambda:self.exit())
+        self.ask_entry.protocol("WM_DELETE_WINDOW", lambda: self.exit())
 
         try:
             img = Image("photo", file="icon.gif")
-            self.ask_entry.call('wm','iconphoto', self.ask_entry, img)
-        except:
+            self.ask_entry.call('wm', 'iconphoto', self.ask_entry, img)
+        except Exception as msg:
+            self.glv.log(msg)
             pass
 
         self.ask_entry.resizable(False, False)
@@ -74,23 +86,24 @@ class Main:
         if 'R' in self.site_id or 'V' in self.site_id:
             site = DlSite(self.glv)
         else:
-            self.vndb_id = re.sub("\D", "", self.vndb_id)
-            self.site_id = re.sub("\D", "", self.site_id)
+            self.vndb_id = re.sub(r"\d+", "", self.vndb_id)
+            self.site_id = re.sub(r"\d+", "", self.site_id)
             
             site = Getchu(self.glv)
 
         self.glv.make_main_dirs(self.vndb_id)
 
-        options = Options()
-        options.add_experimental_option("prefs", {
+        prefs = {
             "download.default_directory": '{}/{}/temp'.format(self.glv.app_folder, self.vndb_id),
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing.enabled": True
-        })
-        chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--ignore-certificate-errors')
+        }
+        options = Options()
+        # options.add_argument('--headless')
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument("--no-sandbox")
+        options.add_experimental_option("prefs", prefs)
 
         self.glv.driver = webdriver.Chrome(options=options)
         # driver.set_window_size(1280, 100)
@@ -105,7 +118,7 @@ class Main:
 
         self.glv.db.check_duplicate(data_vndb['title'], data_vndb['romanji'], self.glv.driver)
 
-        chars_vndb = vndb.get_char_data(self.glv.driver)
+        chars_vndb = vndb.get_char_data()
 
         for char in chars_vndb['chars']:
             self.glv.log('-------------------------------------------------------------')
@@ -274,8 +287,8 @@ class Main:
             try:
                 if os.path.isfile(old_file):
                     os.system(command)
-            except Exception as e:
-                self.glv.log(e)
+            except Exception as message:
+                self.glv.log(message)
                 continue
 
         root_samples = '{}/{}/samples'.format(self.glv.app_folder, self.vndb_id)
@@ -297,26 +310,26 @@ class Main:
         ui.do_loop()
 
 
-driver = None
 main = None
-main = Main(driver)
-main.start()
-exit()
-# try:
-#     main = Main(driver)
-#     main.start()
-# except Exception as e:
-#     main.glv.log('')
-#     main.glv.log(e)
-#
-#     resolution = main.glv.get_screen_resolution()
-#     loc_x = int(resolution[0] / 2) - 250
-#     loc_y = 100
-#
-#     error = ErrorHandler()
-#     error.title('Action log')
-#     error.geometry("827x522+{}+{}".format(loc_x, loc_y))
-#
-#     error.set_error_message(main.glv.errorMessage)
-#     error.resizable(False, False)
-#     error.mainloop()
+# main = Main()
+# main.start()
+# exit()
+try:
+    if len(sys.argv) == 2:
+        Main(sys.argv[1])
+        exit(1)
+    main = Main()
+except Exception as e:
+    main.glv.log(e)
+
+    resolution = main.glv.get_screen_resolution()
+    loc_x = int(resolution[0] / 2) - 250
+    loc_y = 100
+
+    error = ErrorHandler()
+    error.title('Action log')
+    error.geometry("827x522+{}+{}".format(loc_x, loc_y))
+
+    error.set_error_message(main.glv.errorMessage)
+    error.resizable(False, False)
+    error.mainloop()
