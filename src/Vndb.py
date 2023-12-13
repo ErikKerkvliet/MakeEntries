@@ -100,7 +100,7 @@ class Vndb:
         self.glv.driver.get('{}/v{}/chars#chars'.format(self.pageUrl, self.entry_id))
 
         theads = self.glv.get_elements('tag', 'thead')
-        tds = self.glv.get_elements('tag', 'td')
+        char_details = self.glv.get_elements('class', 'chardetails')
 
         data['chars'] = []
         count = 0
@@ -159,68 +159,68 @@ class Vndb:
             body_next = False
             has_measurement = False
             count = 0
-            if tds != 0:
-                for td in tds:
-                    if measure_next:
-                        measure = td.get_attribute('innerHTML').lower()
+            if char_details != 0:
+                for details in char_details:
+                    tds = self.glv.get_element_in_element(details, 'tag', 'td')
+                    for td in tds:
+                        if measure_next:
+                            measure = td.get_attribute('innerHTML').lower()
 
-                        measurements = measure.split(',')
-                        if 'height' in measure:
-                            for measurement in measurements:
-                                if 'height:' in measurement:
-                                    splitted = measurement.split(':')
-                                    height = splitted[1].strip(' ')
+                            measurements = measure.split(',')
+                            if 'height' in measure:
+                                for measurement in measurements:
+                                    if 'height:' in measurement:
+                                        splitted = measurement.split(':')
+                                        height = splitted[1].strip(' ')
 
-                                    data['chars'][count]['height'] = height
+                                        data['chars'][count]['height'] = height
 
-                                    measurements.remove(measurement)
-                                    break
+                                        measurements.remove(measurement)
+                                        break
 
-                        if 'weight' in measure:
-                            for measurement in measurements:
-                                if 'weight:' in measurement:
-                                    splitted = measurement.split(':')
-                                    weight = splitted[1].strip(' ')
+                            if 'weight' in measure:
+                                for measurement in measurements:
+                                    if 'weight:' in measurement:
+                                        splitted = measurement.split(':')
+                                        weight = splitted[1].strip(' ')
 
-                                    data['chars'][count]['weight'] = weight
+                                        data['chars'][count]['weight'] = weight
 
-                                    measurements.remove(measurement)
-                                    break
+                                        measurements.remove(measurement)
+                                        break
 
-                        if 'bust' in measure:
-                            for measurement in measurements:
-                                if 'bust' in measurement:
-                                    splitted = measurement.split(':')
-                                    sizes = splitted[1].strip('bust-waist-hips').strip(' ')
+                            if 'bust' in measure:
+                                for measurement in measurements:
+                                    if 'bust' in measurement:
+                                        splitted = measurement.split(':')
+                                        sizes = splitted[1].strip('bust-waist-hips').strip(' ')
 
-                                    data['chars'][count]['measurements'] = sizes
+                                        data['chars'][count]['measurements'] = sizes
 
-                                    measurements.remove(measurement)
-                                    break
+                                        measurements.remove(measurement)
+                                        break
+                            measure_next = False
+                            has_measurement = True
+                        if body_next:
+                            body = td.get_attribute('innerHTML')
+                            cup = ''
+                            if 'Cup' in body:
+                                body_split = body.split('Cup')[0]
+                                cup_split = body_split.split('Cup')
+                                cup = cup_split[0].split('>')[-1].strip(' ')
+                            if has_measurement:
+                                data['chars'][count - 1]['cup'] = cup
+                            else:
+                                data['chars'][count]['cup'] = cup
+                                has_measurement = False
 
-                        count += 1
-                        measure_next = False
-                        has_measurement = True
-                    if body_next:
-                        body = td.get_attribute('innerHTML')
-                        cup = ''
-                        if 'Cup' in body:
-                            body_split = body.split('Cup')[0]
-                            cup_split = body_split.split('Cup')
-                            cup = cup_split[0].split('>')[-1].strip(' ')
-                        if has_measurement:
-                            data['chars'][count - 1]['cup'] = cup
-                        else:
-                            data['chars'][count]['cup'] = cup
-                            has_measurement = False
-                            count += 1
+                            body_next = False
 
-                        body_next = False
-
-                    if td.get_attribute('innerHTML') == 'Measurements':
-                        measure_next = True
-                    if '>Body<' in td.get_attribute('innerHTML'):
-                        body_next = True
+                        if td.get_attribute('innerHTML') == 'Measurements':
+                            measure_next = True
+                        if '>Body<' in td.get_attribute('innerHTML'):
+                            body_next = True
+                    count += 1
 
             charimgs = self.glv.get_elements('class', 'charimg')
             count = 0

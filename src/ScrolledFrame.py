@@ -545,8 +545,8 @@ class App(Tk):
                     
                 data['chars'][-1]['age'] = self.frame.charAgeEntry[i].get()
                 
-                # if self.frame.charImgCheckVar[i].get() == 1:
-                #     data['chars'][-1]['img2'] = top_data['chars'][i]['img2']
+                if self.frame.charImgCheckVar[i].get() == 1:
+                    data['chars'][-1]['img2'] = top_data['chars'][i]['img2']
             
         data['samples'] = []
         data['sampleVars'] = []

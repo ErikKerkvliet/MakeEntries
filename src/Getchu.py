@@ -19,6 +19,8 @@ class Getchu:
         self.lines = []
         self.char_nr = 0
         self.char_nrs = []
+        self.nrs = {}
+        self.data = None
 
     @staticmethod
     def find_str(full, sub):
@@ -82,7 +84,7 @@ class Getchu:
          
         source = driver.page_source
         
-        start = self.find_str(source, '<div class="tabletitle"> キャラクター</div>')
+        start = self.find_str(source, '<div class="tabletitle">&nbsp;キャラクター</div>')
         sub_str = source[start:]
         
         end = self.find_str(sub_str, '</tbody></table>')
@@ -207,6 +209,7 @@ class Getchu:
 
         self.glv.log('Getting screenshot images')
 
+        self.data = data
         self.download_images(driver, vndb_id)
 
         return data
@@ -222,7 +225,7 @@ class Getchu:
         
         return name
 
-    def download_images(self, driver, entry_id):
+    def download_images(self, driver, vndb_id):
         script = "$('.highslide').attr('onclick', 'window.open(this)');$('.highslide').attr('onkeypress', '')"
         driver.execute_script(script)
 
@@ -231,7 +234,7 @@ class Getchu:
 
         high_slide_images = self.glv.get_elements('class', 'highslide')
 
-        root = '{}/{}'.format(self.glv.app_folder, entry_id)
+        root = '{}/{}'.format(self.glv.app_folder, vndb_id)
         root_temp = '{}/temp'.format(root)
 
         self.glv.sleep(2)
@@ -243,6 +246,8 @@ class Getchu:
             image_name = src.split('/')[-1]
 
             if '_' not in image_name and 'charab' not in image_name and 'chara' in image_name:
+                nr = image_name.split('chara')[1].split('.')[0]
+                self.nrs[nr] = char_nr
                 self.char_nrs.append(char_nr)
                 img_name = '__img{}'.format(char_nr)
                 char_nr += 1
@@ -274,8 +279,8 @@ class Getchu:
         if name == '':
             src = image.get_attribute('src')
             if 'charab' in src:
-                image_name = 'char{}.png'.format(self.char_nrs[self.char_nr])
-                self.char_nr += 1
+                nr = src.split('charab')[1].split('.')[0]
+                image_name = f'char{nr}.png'
             else:
                 image_name = src.split('/')[-1].split('.')[0] + '.png'
         else:
