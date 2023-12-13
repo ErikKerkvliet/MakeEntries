@@ -45,8 +45,8 @@ class Main:
 
             self.exit()
 
-        self.vndb_id = '0'
-        self.site_id = '0'
+        self.vndb_id = '31037'
+        self.site_id = '1142377'
 
         self.glv.set_test(False)
         self.glv.set_tables()
@@ -61,24 +61,24 @@ class Main:
 
         self.glv.log('Getting entry nrs.')
 
-        self.ask_entry = AskEntry(self, self.glv)
-        self.ask_entry.title('Entry nrs.')
-
-        self.ask_entry.geometry("170x109+{}+{}".format(x_loc, y_loc))
-        self.ask_entry.wm_attributes("-topmost", 1)
-
-        self.ask_entry.protocol("WM_DELETE_WINDOW", lambda: self.exit())
-
-        try:
-            img = Image("photo", file="icon.gif")
-            self.ask_entry.call('wm', 'iconphoto', self.ask_entry, img)
-        except Exception as msg:
-            self.glv.log(msg)
-            pass
-
-        self.ask_entry.resizable(False, False)
-
-        self.ask_entry.mainloop()
+        # self.ask_entry = AskEntry(self, self.glv)
+        # self.ask_entry.title('Entry nrs.')
+        #
+        # self.ask_entry.geometry("170x109+{}+{}".format(x_loc, y_loc))
+        # self.ask_entry.wm_attributes("-topmost", 1)
+        #
+        # self.ask_entry.protocol("WM_DELETE_WINDOW", lambda: self.exit())
+        #
+        # try:
+        #     img = Image("photo", file="icon.gif")
+        #     self.ask_entry.call('wm', 'iconphoto', self.ask_entry, img)
+        # except Exception as msg:
+        #     self.glv.log(msg)
+        #     pass
+        #
+        # self.ask_entry.resizable(False, False)
+        #
+        # self.ask_entry.mainloop()
 
         self.glv.log('Url vndb: {}'.format(self.vndb_id))
         self.glv.log('Url getchu: {}'.format(self.site_id))
@@ -86,8 +86,8 @@ class Main:
         if 'R' in self.site_id or 'V' in self.site_id:
             site = DlSite(self.glv)
         else:
-            self.vndb_id = re.sub(r"\d+", "", self.vndb_id)
-            self.site_id = re.sub(r"\d+", "", self.site_id)
+            self.vndb_id = re.sub("\D", "", self.vndb_id)
+            self.site_id = re.sub("\D", "", self.site_id)
             
             site = Getchu(self.glv)
 

@@ -78,7 +78,7 @@ class AskEntry(Tk):
             for (txt, cmd) in nclst:
                 rmenu.add_command(label=txt, command=cmd)
     
-            rmenu.tk_popup(e.x_root+40, e.y_root+10, entry="0")
+            rmenu.tk_popup(e.x_root, e.y_root+10, entry="0")
     
         except TclError:
             print(' - rClick menu, something wrong')

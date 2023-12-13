@@ -15,7 +15,7 @@ class Getchu:
     def __init__(self, globalvar):
         self.glv = globalvar
         self.getchu_id = ''
-        self.pageUrl = 'http://www.getchu.com'
+        self.page_url = 'http://www.getchu.com'
         self.lines = []
         self.char_nr = 0
         self.char_nrs = []
@@ -53,7 +53,7 @@ class Getchu:
 
         self.getchu_id = getchu_id
 
-        driver.get('{}/soft.phtml?id={}'.format(self.pageUrl, self.getchu_id))
+        driver.get('{}/soft.phtml?id={}'.format(self.page_url, self.getchu_id))
         
         source = driver.page_source
         
@@ -71,7 +71,7 @@ class Getchu:
         
         time.sleep(2)
         
-        url = '{}/soft.phtml?id={}'.format(self.pageUrl, self.getchu_id)
+        url = '{}/soft.phtml?id={}'.format(self.page_url, self.getchu_id)
         
         delay = 5  # seconds
         try:
@@ -92,7 +92,7 @@ class Getchu:
 
         data['infopage'] = url
         
-        data['cover'] = '{}/brandnew/{}/c{}package.png'.format(self.pageUrl, self.getchu_id, self.getchu_id)
+        data['cover'] = '{}/brandnew/{}/c{}package.png'.format(self.page_url, self.getchu_id, self.getchu_id)
         
         a_s = self.glv.get_elements('tag', 'a')
 
@@ -103,7 +103,6 @@ class Getchu:
 
         self.glv.log('Getting getchu character data')
 
-        data['chars'] = []
         for i, tr in enumerate(char_trs):
             if i == 0:
                 continue
@@ -119,12 +118,12 @@ class Getchu:
             
             if len(imgs) > 1:
                 img1 = imgs[1].split('.png"')
-                img1 = self.pageUrl + img1[0] + '.png'
+                img1 = self.page_url + img1[0] + '.png'
             
             img2 = ''
             if len(imgs) > 2:
                 img2 = imgs[-1].split('.png"')
-                img2 = self.pageUrl + img2[0] + '.png'
+                img2 = self.page_url + img2[0] + '.png'
                 img2 = img2.replace('_s', '')
             
             cup = ''
@@ -239,7 +238,7 @@ class Getchu:
 
         images = self.glv.get_elements('tag', 'img')
         char_nr = 1
-        for i, image in enumerate(images):
+        for image in images:
             src = image.get_attribute('src')
             image_name = src.split('/')[-1]
 

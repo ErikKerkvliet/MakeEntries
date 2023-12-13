@@ -261,7 +261,7 @@ class DB:
                 path = '{}/cover'.format(self.root_entries)
                 os.makedirs(path)
                 os.chmod(path, 0o7777)
-        elif type == 'char':
+        elif dir_type == 'char':
             if not os.path.isdir(path):
                 path = path
                 os.makedirs(path)

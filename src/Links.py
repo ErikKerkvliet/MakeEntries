@@ -58,10 +58,10 @@ class Links(Tk):
                                 f"AND link LIKE '%{host}.%' AND comment = ''")
 
             if delete_query:
-                self.glv.db.runQuery(delete_query)
+                self.glv.db.run_query(delete_query)
 
             for insert_query in insert_queries:
-                self.glv.db.runQuery(insert_query)
+                self.glv.db.run_query(insert_query)
 
         exit()
 

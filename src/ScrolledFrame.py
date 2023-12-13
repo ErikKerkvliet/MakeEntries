@@ -368,8 +368,9 @@ class ScrolledFrame(Frame):
         
         if char['age'] != '':
             self.charAgeEntry[-1].insert(0, char['age'])
-            
-        if char['img2'] != '' and os.path.isfile(char['img2']):
+
+        char['img2'] = char['img1'].replace('__img', 'char')
+        if os.path.isfile(char['img2']):
             image = Image.open(char['img2'])
         
             resized = image.resize([64, 64])
@@ -544,8 +545,8 @@ class App(Tk):
                     
                 data['chars'][-1]['age'] = self.frame.charAgeEntry[i].get()
                 
-                if self.frame.charImgCheckVar[i].get() == 1:
-                    data['chars'][-1]['img2'] = top_data['chars'][i]['img2']
+                # if self.frame.charImgCheckVar[i].get() == 1:
+                #     data['chars'][-1]['img2'] = top_data['chars'][i]['img2']
             
         data['samples'] = []
         data['sampleVars'] = []

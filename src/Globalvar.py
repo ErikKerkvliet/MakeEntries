@@ -226,7 +226,7 @@ class Globalvar:
             if char['img2'] != '' and char['img2'].split('"')[0] != '':
                 self.download_url(char['img2'], 'char{}'.format(j_up))
 
-                img2 = '{}/char.jpg'.format(root_char)
+                img2 = '' # '/char.jpg'.format(root_char)
 
             data['chars'][j]['img1'] = img1
             data['chars'][j]['img2'] = img2
