@@ -7,6 +7,7 @@ import time
 from random import uniform
 import urllib.request
 import subprocess
+
 from Db import DB
 
 from PIL import Image
@@ -23,10 +24,16 @@ class Globalvar:
         self.img_folder = '{}/entry_images'.format(self.app_folder)
         self.downloadFolder = ''
         self.entry_id = None
+        self.vndb_id = None
         self.test = False
         self.developer = 9999999
         self.character = 9999999
-
+        self.info_site = None
+        self.db_site = None
+        self.db_label = None
+        self.no_resize = False
+        self.video_file_path = None
+        self.file = None
         self.entries_table = None
         self.characters_table = None
         self.developers_table = None
@@ -177,25 +184,16 @@ class Globalvar:
             return by
 
     def make_main_dirs(self, vndb_id):
-        if not os.path.isdir(self.app_folder):
-            os.makedirs(self.app_folder, mode=0o7777)
-
-        if not os.path.isdir("{}/{}/temp".format(self.app_folder, vndb_id)):
-            os.makedirs("{}/{}/temp".format(self.app_folder, vndb_id), mode=0o7777)
-
-        if not os.path.isdir("{}/{}".format(self.app_folder, vndb_id)):
-            os.makedirs("{}/{}".format(self.app_folder, vndb_id), mode=0o7777)
-
-        if not os.path.isdir("{}/{}/samples".format(self.app_folder, vndb_id)):
-            os.makedirs("{}/{}/samples".format(self.app_folder, vndb_id), mode=0o7777)
-
-        if not os.path.isdir("{}/{}/chars".format(self.app_folder, vndb_id)):
-            os.makedirs("{}/{}/chars".format(self.app_folder, vndb_id), mode=0o7777)
+        folders = ['temp', 'samples', 'chars']
+        for folder in folders:
+            path = f'{self.app_folder}/{vndb_id}/{folder}'
+            if not os.path.isdir(path):
+                os.makedirs(path)
 
     def make_char_dir(self, vndb_id, char_id):
         folder = "{}/{}/chars/{}".format(self.app_folder, vndb_id, char_id)
         if not os.path.isdir(folder):
-            os.makedirs("{}/{}/chars/{}".format(self.app_folder, vndb_id, char_id), mode=0o7777)
+            os.makedirs(folder)
 
     def download_images(self, data, vndb_id):
         self.set_download_dir(vndb_id)
@@ -206,10 +204,10 @@ class Globalvar:
         root = '{}/{}'.format(self.app_folder, vndb_id)
 
         if data['cover1'] != '':
-            self.download_url(data['cover1'], '_cover_1')
+            self.download_url(data['cover1'], '_cover_1.jpg')
             data['cover1'] = '{}/_cover_1.jpg'.format(root)
         if data['cover2'] != '':
-            self.download_url(data['cover2'], '_cover_2')
+            self.download_url(data['cover2'], '_cover_2.jpg')
             data['cover2'] = '{}/_cover_2.jpg'.format(root)
 
         for j, char in enumerate(chars):
@@ -226,7 +224,7 @@ class Globalvar:
             if char['img2'] != '' and char['img2'].split('"')[0] != '':
                 self.download_url(char['img2'], 'char{}'.format(j_up))
 
-                img2 = '' # '/char.jpg'.format(root_char)
+                img2 = ''
 
             data['chars'][j]['img1'] = img1
             data['chars'][j]['img2'] = img2
@@ -241,16 +239,26 @@ class Globalvar:
 
         data['samples'] = new_samples
 
+    def run_js(self, command, return_data=False, driver=None):
+        if driver is None:
+            driver = self.driver
+        if return_data:
+            command = f'return {command}'
+        return driver.execute_script(command)
+
     def download_url(self, url, filename):
         url = url.split('"')[0]
 
         if 'vndb.org' in url:
             self.log('Download url: {} to: {}'.format(url, filename))
 
-            self.sleep(0.5)
-
+            self.sleep(1)
+            file = '{}/{}'.format(self.downloadFolder, filename)
+            if os.path.isfile(file):
+                self.log('File already exists')
+                return
             try:
-                urllib.request.urlretrieve(url, '{}/{}'.format(self.downloadFolder, filename))
+                urllib.request.urlretrieve(url, file)
                 self.log('Downloaded')
             except Exception as exc:
                 self.log(exc)

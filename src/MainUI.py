@@ -19,9 +19,6 @@ class MainUI:
         self.app = ScrolledFrame.App(self.glv)
         self.app.title('Make Entries v1.6 | Made by: Erik Kerkvliet')
         
-        img = Image("photo", file="icon.gif")
-        self.app.call('wm', 'iconphoto', self.app, img)
-        
         self.app.geometry("1024x1024+0+0") 
         self.app.resizable(False, False)
         

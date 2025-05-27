@@ -1,14 +1,16 @@
 import pymysql
 import base64
 import os
+from dotenv import load_dotenv
 
 from tkinter import Image
 
-from sys import exit
 from PIL import Image
 import sys
 from math import floor
 from shutil import copyfile, rmtree
+
+load_dotenv()
 
 
 class DB:
@@ -17,14 +19,13 @@ class DB:
         self.glv = globalvar
 
         self.glv.log('Making connection with the DB')
-        self.password = base64.b64decode('ZmlyZWZseQ==')
         self.root = '/var/www/Hcapital/entry_images'
 
         self.connection = pymysql.Connection(
-            host="localhost",
-            user="yuuichi_sagara",
-            password=self.password,
-            database="hcapital"
+            host=os.getenv('DATABASE_HOST'),
+            user=os.getenv('DATABASE_USER'),
+            password=os.getenv('DATABASE_PASSWORD'),
+            database=os.getenv('DATABASE_NAME')
         )
 
         if self.connection is not None:
@@ -33,18 +34,19 @@ class DB:
         self.root_entries = ''
         self.root_chars = ''
 
-    def check_duplicate(self, title, romanji, browser):
+    def check_duplicate(self, title, romanji='', driver=None, type='game'):
         if self.glv.get_test():
             return
-        romanji = "3-5-4-6-7" if romanji == '' else romanji
+        romanji = title[0:-8] if romanji == '' else romanji
 
         title = self.check_var_for_sql(title)
         romanji = self.check_var_for_sql(romanji)
 
         # table = 'entries' if self.glv.get_test() == False else 'entries_2'
 
-        query = "SELECT id AS `rows` FROM {} WHERE type = 'game' AND (title = '{}' OR romanji = '{}')".format(
+        query = "SELECT id AS `rows` FROM {} WHERE type = '{}' AND (title = '{}' OR romanji = '{}')".format(
             self.glv.entries_table,
+            type,
             title,
             romanji
         )
@@ -52,10 +54,18 @@ class DB:
         entry_id = self.run_query(query)
 
         if entry_id != 0:
-            message = 'Duplicate entry: {}'.format(entry_id)
-            self.glv.log(message, 'error', browser)
+            if driver is not None:
+                message = 'Duplicate entry: {}'.format(entry_id)
+                self.glv.log(message, 'error', driver)
+                self.glv.quit()
+            else:
+                entry_data = self.get_entry_by_id(entry_id)
 
-            browser.quit()
+                series = self.get_series_by_anidb_id(entry_data[0][7])
+                for entry in series:
+                    if title[-7:] in entry[1]:
+                        return True
+                return False
 
     def delete_all_test_rows(self):
         queries = [
@@ -71,19 +81,19 @@ class DB:
 
         return True
 
-    def connect(self, data, vndb_id):
-        entry_id = self.submit_entry_data(data)
+    def connect(self, data, vndb_id, entry_id):
         self.glv.entry_id = entry_id
 
         self.glv.log('Entry has been made: {}'.format(entry_id))
 
-        for i in range(3):
-            if 'developer{}'.format(i) not in data.keys() or data['developer{}'.format(i)] == '':
-                break
-
-            developer = data['developer{}'.format(i)]
+        if 'developer1' in data.keys() and data['developer1'] != '':
+            developer = data['developer1']
             developer = self.check_var_for_sql(developer)
+            self.submit_developers(developer, entry_id)
 
+        if 'developer2' in data.keys() and data['developer2'] != '':
+            developer = data['developer2']
+            developer = self.check_var_for_sql(developer)
             self.submit_developers(developer, entry_id)
 
         self.glv.log('Developers have been made.')
@@ -113,8 +123,6 @@ class DB:
             print('Sitemap has been edited')
             self.glv.log('Sitemap has been edited')
 
-        sys.exit()
-
     @staticmethod
     def check_var_for_sql(var):
         if "'" in var:
@@ -127,17 +135,12 @@ class DB:
     def submit_entry_data(self, data):
         data['title'] = self.check_var_for_sql(data['title'])
         data['romanji'] = self.check_var_for_sql(data['romanji'])
-        data['developer0'] = self.check_var_for_sql(data['developer0'])
-        if 'developer1' in data.keys():
-            data['developer1'] = self.check_var_for_sql(data['developer1'])
-        if 'developer2' in data.keys():
-            data['developer2'] = self.check_var_for_sql(data['developer2'])
         data['webpage'] = self.check_var_for_sql(data['webpage'])
         data['infopage'] = self.check_var_for_sql(data['infopage'])
 
         query = "INSERT INTO {} (".format(self.glv.entries_table)
         query += "id, title, romanji, released, size, website, information, "
-        query += "password, type, time_type, last_edited"
+        query += "vndb_id, password, type, time_type, last_edited"
         query += ") VALUES (NULL,"
         query += "'" + data['title'] + "', "
         query += "'" + data['romanji'] + "', "
@@ -145,9 +148,11 @@ class DB:
         query += "'', "  # size
         query += "'" + data['webpage'] + "', "
         query += "'" + data['infopage'] + "', "
+        query += "" + self.glv.vndb_id + ", "
         query += "'', "  # password
-        query += "'app', "
-        query += "'upc', "
+
+        query += "'" + data['type'] + "', "
+        query += "'old', "
         query += "CURRENT_TIMESTAMP()) "
 
         self.glv.log('Inserting entry')
@@ -167,10 +172,12 @@ class DB:
         if developer_id == 0 or developer is None:
             # table = 'developers' if self.glv.get_test() == False else 'developers_2'
 
+            type = 'ova' if self.glv.db_label == 'anidb' else 'game'
+
             query = "INSERT INTO {}".format(self.glv.developers_table)
             query += " (id, name, kanji, homepage, type)"
             query += " VALUES "
-            query += "(NULL, '{}', '{}', '{}', '{}')".format(developer, '', '', 'game')
+            query += "(NULL, '{}', '{}', '{}', '{}')".format(developer, '', '', type)
 
             developer_id = self.run_query(query)
 
@@ -185,6 +192,9 @@ class DB:
 
     def submit_chars_data(self, chars, entry_id):
         for i, char in enumerate(chars):
+            if 'checked' not in char:
+                continue
+
             char['name'] = self.check_var_for_sql(char['name'])
             char['romanji'] = self.check_var_for_sql(char['romanji'])
 
@@ -247,26 +257,81 @@ class DB:
             self.move_char(char, char_id)
             print('Character has been moved')
 
+    def insert_entry_character(self, entry_id, char_id):
+        query = "INSERT INTO {} (entry_id, character_id) VALUES ({}, {})".format(
+            self.glv.entry_characters_table,
+            entry_id,
+            char_id
+        )
+
+        self.run_query(query)
+
+        print('Character relation has been made. entry_id:{} char_id: {}'.format(entry_id, char_id))
+
+    def find_characters(self, character):
+        query = 'SELECT c.id AS cid, e.id AS eid, e.romanji, e.title FROM `characters` as c '
+        query += 'LEFT JOIN entry_characters as ec ON ec.character_id = c.id '
+        query += 'LEFT JOIN entries as e ON ec.entry_id = e.id '
+
+        query += ' WHERE '
+
+        if character["name"] != '':
+            query += f'c.name LIKE "{character["name"]}" '
+
+        if character["romanji"] != '':
+            query += f'or c.romanji LIKE "{character["romanji"]}"'
+
+        if character["name"] == '' and character["romanji"] == '':
+            return []
+
+        return self.run_query(query, False, True)
+
+    def insert_entry_relation(self, entry_id, relation_id, type='series'):
+        query = f'INSERT INTO entry_relations (entry_id, relation_id, type) VALUES({entry_id}, {relation_id}, "{type}")'
+        self.run_query(query)
+
+    def find_relation_by_anidb_id(self, anidb_id):
+        query = f"""
+            SELECT e.id FROM entries e
+            LEFT JOIN entry_relations er ON er.entry_id = e.id
+            WHERE e.type='ova' AND e.vndb_id={anidb_id} AND er.entry_id=er.relation_id
+        """
+        return self.run_query(query)
+
+    def find_developer_by_anidb_id(self, anidb_id):
+        query = f"""
+            SELECT d.name FROM entries e
+            LEFT JOIN entry_relations er ON er.entry_id = e.id
+            LEFT JOIN entry_developers ed ON ed.entry_id = e.id
+            LEFT JOIN developers d ON d.id = ed.developer_id
+            WHERE e.vndb_id = {anidb_id} AND e.type = 'ova' AND er.entry_id = er.relation_id
+        """
+        return self.run_query(query)
+
+    def get_entry_by_id(self, entry_id):
+        query = f"""
+            SELECT * FROM entries e WHERE e.id = {entry_id}
+        """
+        return self.run_query(query, fetch_all=True)
+
+    def get_series_by_anidb_id(self, anidb_id):
+        query = f"""
+            SELECT * FROM entries e WHERE e.vndb_id = {anidb_id}
+        """
+        return self.run_query(query, fetch_all=True)
+
     def make_dirs(self, dir_type, path=''):
         if dir_type == 'info':
-            if not os.path.isdir('{}'.format(self.root_entries)):
-                path = '{}'.format(self.root_entries)
-                os.makedirs(path)
-                os.chmod(path, 0o7777)
-            if not os.path.isdir('{}/cg'.format(self.root_entries)):
-                path = '{}/cg'.format(self.root_entries)
-                os.makedirs(path)
-                os.chmod(path, 0o7777)
-            if not os.path.isdir('{}/cover'.format(self.root_entries)):
-                path = '{}/cover'.format(self.root_entries)
-                os.makedirs(path)
-                os.chmod(path, 0o7777)
+            folders = ['', 'cg', 'cover']
+            for folder in folders:
+                path = f'{self.root_entries}/{folder}'
+                if not os.path.isdir(path):
+                    os.makedirs(path, mode=0o777)
+
         elif dir_type == 'char':
             if not os.path.isdir(path):
-                path = path
-                os.makedirs(path)
-                os.chmod(path, 0o7777)
-                
+                os.makedirs(path, mode=0o777)
+
     def move_cover(self, cover):
         self.glv.log('Moving cover images')
 
@@ -292,15 +357,15 @@ class DB:
             self.make_dirs('char', root_char)
                           
         save_location = '{}/__img.jpg'.format(root_char)
-
-        if 'img1' in char.keys() and char['img1'] != '':
-            try:
-                with open(char['img1'], 'r+b') as f:
-                    with Image.open(f) as image:
-                        char_face = image.resize((256, 300), Image.LANCZOS)
-                        char_face.save(save_location, image.format)
-            except:
-                pass
+        if not os.path.isfile(save_location):
+            if 'img1' in char.keys() and char['img1'] != '':
+                try:
+                    with open(char['img1'], 'r+b') as f:
+                        with Image.open(f) as image:
+                            char_face = image.resize((256, 300), Image.LANCZOS)
+                            char_face.save(save_location, image.format)
+                except:
+                    pass
         
         try:
             if 'img2' in char.keys() and char['img2'] != '':                        
@@ -342,8 +407,16 @@ class DB:
                     else:
                         self.resize(image, 600, 600, save_location, sample)
 
-    @staticmethod
-    def resize(image, max_x, max_y, save_location, file_path):
+    def resize(self, image, max_x, max_y, save_location, file_path):
+        # Check if we should skip resizing
+        if self.glv.no_resize:
+            # For video captures, just save without resizing
+            if 'samples' in file_path and self.glv.video_file_path is not None:
+                extension = save_location.split('.')[-1]
+                if extension == 'jpg' or extension == 'jpeg':
+                    image.save(save_location, image.format)
+                return
+
         factor = 1
         factor_x = max_x / image.width
         factor_y = max_y / image.height
@@ -386,43 +459,67 @@ class DB:
 
         self.glv.clean_folder()
 
-    def run_query(self, query, error=False):
+    def run_query(self, query, error=False, fetch_all=False):
+        query = query.strip()
+        # Log the query string for debugging or monitoring purposes
         self.glv.log('\n{}\n'.format(query))
 
+        # If running in test mode, replace 'NULL' values in the query with '999999'
         if self.glv.get_test():
             query = query.replace('NULL', '999999')
-
             print(query)
 
+        # Determine the type of query by examining the first 6 characters (e.g., 'SELECT', 'INSERT')
         query_type = query[0:6]
 
+        # If in test mode and the query type is 'DELETE', execute the query but do not return any result
         if self.glv.get_test() and query_type == 'DELETE':
             with self.connection.cursor() as cursor:
                 cursor.execute(query)
-                self.connection.commit()
+                self.connection.commit()  # Commit DELETE operations in test mode
 
-            return
+            return  # Return None explicitly for DELETE in test mode
 
         try:
+            # Execute the query in a new cursor context
             with self.connection.cursor() as cursor:
                 cursor.execute(query)
 
+                # Handle 'INSERT' queries by committing and returning the last inserted id
                 if query_type == 'INSERT':
-                    self.connection.commit()
+                    self.connection.commit()  # Commit INSERT operations
 
+                    # Get the name of the table from the query and select the latest inserted ID
                     table = query.split(' ')[2]
                     id_query = 'SELECT id FROM {} ORDER BY id DESC LIMIT 1'.format(table)
                     result = self.run_query(id_query)
-                    return result
-                elif query_type == 'SELECT':
-                    result = cursor.fetchone()
+                    return result  # Returns the latest inserted ID (int) or None if no rows
 
-                    return 0 if result is None or len(result) < 1 else result[0]
+                elif query_type == 'UPDATE' or query_type == 'DELETE':
+                    self.connection.commit()   # Commit UPDATE or DELETE operations
+
+                # Handle 'SELECT' queries
+                elif query_type == 'SELECT':
+                    # If fetch_all is True, return all rows as a list of tuples (list of tuples)
+                    if fetch_all:
+                        return cursor.fetchall()  # Returns a list of tuples
+
+                    # Otherwise, fetch only the first row
+                    result = cursor.fetchone()  # Returns a single tuple or None if no result
+
+                    # If no result or the result is empty, return 0; otherwise, return the first item in the tuple
+                    return 0 if result is None or len(result) < 1 else result[0]  # Returns int, str, or 0
+
         except Exception as e:
+            # Log the exception for debugging
             self.glv.log(e)
 
+            # If error flag is True, return the exception object
             if error:
-                return e
+                return e  # Returns an Exception object
+
+            # If the query is a 'SELECT' and fails, return 0 to indicate failure
             elif 'SELECT' in query:
-                return 0
-            exit()
+                return 0  # Returns int (0) as a default for failed SELECT queries
+
+            exit()  # Exit the program if an unhandled exception occurs

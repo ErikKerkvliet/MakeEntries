@@ -22,7 +22,6 @@ class Vndb:
         data['romanji'] = ''
         data['title'] = ''
         data['webpage'] = ''
-        data['developer0'] = ''
         data['developer1'] = ''
         data['developer2'] = ''
         data['chars'] = []
@@ -32,7 +31,7 @@ class Vndb:
         if cover != 0:
             cover = self.glv.get_element_old(cover[0], 'tag', 'img')
 
-            data['cover'] = cover.get_attribute('src')
+            data['cover'] = cover.get_attribute('src') if cover != 0 else ''
 
         self.glv.log('Cover vndb: {}'.format(data['cover']))
 
@@ -58,11 +57,12 @@ class Vndb:
         for td in tds:
             if next_td:
                 dev_split = td.get_attribute('innerHTML').split(' & ')
-                for i, dev in enumerate(dev_split):
-                    developer = dev.split('>')
-                    data['developer{}'.format(i)] = developer[1][:-3]
+                for i in range(len(dev_split)):
+                    j = i + 1
+                    developer = dev_split[i].split('>')
+                    data['developer{}'.format(j)] = developer[1][:-3]
 
-                    self.glv.log('Develover {}: {}'.format(i, data['developer{}'.format(i)]))
+                    self.glv.log('Develover {}: {}'.format(j, data['developer{}'.format(j)]))
 
                 break
 
@@ -97,7 +97,8 @@ class Vndb:
         self.glv.log('Getting character data')
 
         data = {}
-        self.glv.driver.get('{}/v{}/chars#chars'.format(self.pageUrl, self.entry_id))
+        url = f'{self.pageUrl}/v{self.entry_id}/chars#chars'
+        self.glv.driver.get(url)
 
         theads = self.glv.get_elements('tag', 'thead')
         char_details = self.glv.get_elements('class', 'chardetails')
@@ -130,9 +131,11 @@ class Vndb:
                 name = self.glv.get_element_old(thead, 'tag', 'small')
                 if name != 0:
                     name_str = name.get_attribute('innerHTML')
-                    data['chars'][count]['name'] = name_str.replace('　', ' ')
+                    name_text = name_str.replace('　', ' ')
+                    data['chars'][count]['name'] = re.sub(r'<[^>]+>', '', name_text)
                 elif data['chars'][count]['romanji'] != '':
-                    data['chars'][count]['name'] = data['chars'][count]['romanji']
+                    name_text = data['chars'][count]['romanji']
+                    data['chars'][count]['name'] = re.sub(r'<[^>]+>', '', name_text)
                     data['chars'][count]['romanji'] = ''
 
                 gender = self.glv.get_element_old(thead, 'tag', 'abbr')
@@ -140,11 +143,11 @@ class Vndb:
                 if gender != 0:
                     gender_type = gender.get_attribute('title')
 
-                    if gender_type == 'Female':
+                    if 'Female' in gender_type:
                         gender = 'female'
-                    elif gender_type == 'Male':
+                    elif 'Male' in gender_type:
                         gender = 'male'
-                    elif gender_type == 'Both':
+                    elif 'Both' in gender_type:
                         gender = 'both'
                     else:
                         gender = 'unknown'
