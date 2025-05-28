@@ -3,7 +3,6 @@ import sys
 import time
 import re
 import os
-from tkinter import Image
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
@@ -15,10 +14,9 @@ from dlsite import DlSite
 from Globalvar import Globalvar
 from AskEntry import AskEntry
 from MainUI import MainUI
-from Links import Links
+
 # from ErrorHandler import ErrorHandler
 from CharacterHandler import CharacterHandler
-from ArchiveManager import ArchiveManager
 
 
 class Main:
@@ -83,39 +81,45 @@ class Main:
 
     def process_entry_data(self):
         """Process and combine data from different sources"""
-        vndb = Vndb(self.glv)
 
+        # Initialize vndb object based on db_label
+        if self.db_label == 'anidb':
+            vndb = AniDB(self.glv)
+        else:
+            vndb = Vndb(self.glv)
+
+        # Initialize site object based on site_label
         if self.site_label == 'dlsite':
             site = DlSite(self.glv)
             pattern = r'(VJ|RJ)\d+?(?=\.)'
             match = re.search(pattern, self.getchu_id)
-            self.site_id = match.group(0)
-        elif self.db_label == 'anidb':
-            vndb = AniDB(self.glv)
-            site = Getchu(self.glv)
-            self.vndb_id = re.sub(r"\D", "", self.vndb_id)
-            self.site_id = re.sub(r"\D", "", self.getchu_id.split('/')[-1])
+            self.site_id = match.group(0) if match else self.getchu_id
         else:
-            vndb = Vndb(self.glv)
             site = Getchu(self.glv)
             self.site_id = re.sub(r"\D", "", self.getchu_id)
 
+        # Clean vndb_id to only contain numbers
         self.vndb_id = re.sub(r"\D", "", self.vndb_id)
-
         self.glv.vndb_id = self.vndb_id
 
         self.glv.make_main_dirs(self.vndb_id)
 
+        # Get data from database source (VNDB or AniDB)
         data_vndb = vndb.get_entry_data(self.glv.driver, self.vndb_id)
 
+        # Fix title/romanji if needed
         if data_vndb['title'] == '' and data_vndb['romanji'] != '':
             data_vndb['title'] = data_vndb['romanji']
             data_vndb['romanji'] = ''
 
-        if ' Vol. '  not in data_vndb['title']:
+        # Check for duplicates (skip for volume series)
+        if ' Vol. ' not in data_vndb['title']:
             self.glv.db.check_duplicate(data_vndb['title'], data_vndb['romanji'], self.glv.driver)
 
+        # Get character data
         chars_vndb = vndb.get_char_data()
+
+        # Get data from site source (Getchu or Dlsite)
         data_site = site.get_entry_data(self.glv.driver, self.site_id, self.vndb_id)
 
         return self.combine_data(data_vndb, chars_vndb, data_site)
@@ -163,7 +167,8 @@ class Main:
 
         return [char for char in chars if char['img1']]
 
-    def create_character_entry(self, char_data):
+    @staticmethod
+    def create_character_entry(char_data):
         """Create a character entry from given data"""
         return {
             'name': char_data['name'],
@@ -200,6 +205,7 @@ class Main:
             name = f.replace('.jpg', '')
             old_file = f'{root_temp}/{name}.jpg'
 
+            move_to = None
             if 'package' in f or '_cover_1' in f:
                 move_to = f'{root}/_cover_1.jpg'
             elif '_cover_2' in f:
@@ -241,10 +247,6 @@ class Main:
         """Main method to start the application"""
         self.glv.file = file
         self.setup_logging()
-
-        if app_type == 'links':
-            self.run_links_app()
-            return
 
         if app_type == 'ova':
             self.glv.no_resize = True
@@ -291,20 +293,6 @@ class Main:
         ui = MainUI(self.glv)
         ui.fill_data(data, self.vndb_id)
         ui.do_loop()
-
-    def run_links_app(self):
-        """Run the Links application"""
-        screen_resolution = self.glv.get_screen_resolution()
-        x_loc = screen_resolution[0] - 1300
-        y_loc = screen_resolution[1] - 1200
-
-        link = Links(self.glv)
-        link.geometry(f'800x500+{x_loc}+{y_loc}')
-        link.wm_attributes("-topmost", 1)
-        link.protocol("WM_DELETE_WINDOW", lambda: self.exit())
-        link.mainloop()
-
-        self.exit()
 
 
 if __name__ == "__main__":

@@ -74,7 +74,8 @@ class AniDB:
         self.glv.driver = self.glv.driver
         return ''
 
-    def get_char_data(self):
+    @staticmethod
+    def get_char_data():
         return {
             'chars': [],
         }

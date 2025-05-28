@@ -110,14 +110,14 @@ class AskEntry(Tk):
         site_id = ''
         entry = None
         if 'dlsite.com' in pyperclip.paste():
-            self.getchu_label.config(text="DLsite:")
+            self.getchu_label.config(text="Dlsite:")
             self.site_label = 'dlsite'
             site_id = pyperclip.paste().split('id/')[-1].split('/')[0].split('.')[0] + '.'
             entry = self.getchu_entry
         if 'getchu.com' in pyperclip.paste():
             self.getchu_label.config(text="Getchu:")
             self.site_label = 'getchu'
-            site_id = re.sub("\D", "", pyperclip.paste().split('/')[-1])
+            site_id = re.sub(r"\D", "", pyperclip.paste().split('/')[-1])
             entry = self.getchu_entry
         if 'anidb.net' in pyperclip.paste():
             self.vndb_label.config(text="AniDb:")

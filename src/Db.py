@@ -1,12 +1,10 @@
 import pymysql
-import base64
 import os
 from dotenv import load_dotenv
 
 from tkinter import Image
 
 from PIL import Image
-import sys
 from math import floor
 from shutil import copyfile, rmtree
 
@@ -34,7 +32,7 @@ class DB:
         self.root_entries = ''
         self.root_chars = ''
 
-    def check_duplicate(self, title, romanji='', driver=None, type='game'):
+    def check_duplicate(self, title, romanji='', driver=None, entry_type='game'):
         if self.glv.get_test():
             return
         romanji = title[0:-8] if romanji == '' else romanji
@@ -46,7 +44,7 @@ class DB:
 
         query = "SELECT id AS `rows` FROM {} WHERE type = '{}' AND (title = '{}' OR romanji = '{}')".format(
             self.glv.entries_table,
-            type,
+            entry_type,
             title,
             romanji
         )
@@ -172,12 +170,12 @@ class DB:
         if developer_id == 0 or developer is None:
             # table = 'developers' if self.glv.get_test() == False else 'developers_2'
 
-            type = 'ova' if self.glv.db_label == 'anidb' else 'game'
+            entry_type = 'ova' if self.glv.db_label == 'anidb' else 'game'
 
             query = "INSERT INTO {}".format(self.glv.developers_table)
             query += " (id, name, kanji, homepage, type)"
             query += " VALUES "
-            query += "(NULL, '{}', '{}', '{}', '{}')".format(developer, '', '', type)
+            query += "(NULL, '{}', '{}', '{}', '{}')".format(developer, '', '', entry_type)
 
             developer_id = self.run_query(query)
 
@@ -286,8 +284,8 @@ class DB:
 
         return self.run_query(query, False, True)
 
-    def insert_entry_relation(self, entry_id, relation_id, type='series'):
-        query = f'INSERT INTO entry_relations (entry_id, relation_id, type) VALUES({entry_id}, {relation_id}, "{type}")'
+    def insert_entry_relation(self, entry_id, relation_id, entry_type='series'):
+        query = f'INSERT INTO entry_relations (entry_id, relation_id, type) VALUES({entry_id}, {relation_id}, "{entry_type}")'
         self.run_query(query)
 
     def find_relation_by_anidb_id(self, anidb_id):
@@ -364,7 +362,8 @@ class DB:
                         with Image.open(f) as image:
                             char_face = image.resize((256, 300), Image.LANCZOS)
                             char_face.save(save_location, image.format)
-                except:
+                except Exception as e:
+                    self.glv.log(f'Error moving character image: {e}', 'error')
                     pass
         
         try:
@@ -373,7 +372,8 @@ class DB:
                 
                 if os.path.exists(char['img2']):
                     copyfile(char['img2'], save_location)
-        except:
+        except Exception as e:
+            self.glv.log(f'Error moving character image: {e}', 'error')
             pass
             
     def move_samples(self, data):

@@ -70,7 +70,7 @@ class Globalvar:
 
     @staticmethod
     def get_screen_resolution():
-        output = subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',
+        output = subprocess.Popen('xrandr | grep "\\*" | cut -d" " -f4',
                                   shell=True,
                                   stdout=subprocess.PIPE
                                   ).communicate()[0]
@@ -310,7 +310,8 @@ class Globalvar:
                     if os.path.isdir(path):
                         self.clean_folder(path)
                         os.rmdir(path)
-                except:
+                except Exception as ex:
+                    print (f'Error cleaning folder {path}: {ex}')
                     continue
 
         if start != 'false' and start != 'true':

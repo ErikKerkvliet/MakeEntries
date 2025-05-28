@@ -68,7 +68,8 @@ class Getchu:
                 if '【は い】' in span.text:
                     span.click()
                     break
-        except:
+        except Exception as e:
+            print("Error clicking on 'はい' span:", e)
             pass
 
         time.sleep(3)

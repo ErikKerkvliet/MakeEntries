@@ -62,7 +62,7 @@ class Vndb:
                     developer = dev_split[i].split('>')
                     data['developer{}'.format(j)] = developer[1][:-3]
 
-                    self.glv.log('Develover {}: {}'.format(j, data['developer{}'.format(j)]))
+                    self.glv.log('Developer {}: {}'.format(j, data['developer{}'.format(j)]))
 
                 break
 
@@ -265,8 +265,6 @@ class Vndb:
                         age_split = text.split('Age:')
                     elif 'Age' in text:
                         age_split = text.split('Age')
-                    elif 'years old' in text:
-                        age = text.split('years old')[0].strip(' ')
 
                     if len(cup_split) > 1:
                         cup = cup_split[1].split('<')[0].strip(' ')
@@ -275,7 +273,7 @@ class Vndb:
 
                     if len(age_split) > 1:
                         age = age_split[1][0:5]
-                        age = re.sub("\D", "", age)
+                        age = re.sub(r"\D", "", age)
 
                         data['chars'][count]['age'] = age
 

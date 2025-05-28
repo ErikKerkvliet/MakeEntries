@@ -430,7 +430,7 @@ class ScrolledFrame(Frame):
 
     @staticmethod
     def get_screen_resolution():
-        output = subprocess.Popen('xrandr | grep "\*" | cut -d" " -f4',
+        output = subprocess.Popen('xrandr | grep "\\*" | cut -d" " -f4',
                                   shell=True,
                                   stdout=subprocess.PIPE
                                   ).communicate()[0]
@@ -588,7 +588,7 @@ class App(Tk):
 
             from ArchiveManager import ArchiveManager
             archive_manager = ArchiveManager(self.glv)
-            archive_path = archive_manager.create_rar_archive(self.glv.file, self.vndb_id)
+            archive_path = archive_manager.create_rar_archive(self.glv.file)
             self.glv.log(f'Created compressed RAR archive for video file: {archive_path}')
 
         self.glv.quit()

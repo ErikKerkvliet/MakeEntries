@@ -1,1 +1,7 @@
 *.pyc
+.env
+
+.venv
+images
+not_project
+src/.idea

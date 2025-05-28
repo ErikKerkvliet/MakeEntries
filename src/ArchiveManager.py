@@ -1,7 +1,6 @@
 import os
 import shutil
 import subprocess
-import logging
 
 
 class ArchiveManager:
@@ -21,13 +20,12 @@ class ArchiveManager:
         # Make sure we can access the entry_id property from Globalvar
         # It will be set after the database insert operation
 
-    def create_rar_archive(self, source_file_path, vndb_id, custom_name=None):
+    def create_rar_archive(self, source_file_path, custom_name=None):
         """
         Create a maximum compressed RAR archive of the specified file.
 
         Args:
             source_file_path (str): Path to the file to be archived
-            vndb_id (str): The VNDB ID for directory structure
             custom_name (str, optional): Custom name for the archive. Defaults to None.
 
         Returns:
