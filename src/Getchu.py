@@ -65,7 +65,7 @@ class Getchu:
 
         try:
             for span in spans:
-                if '【は い】' in span.text:
+                if '【は い】' in span.text or '【すすむ】' in span.text:
                     span.click()
                     break
         except Exception as e:

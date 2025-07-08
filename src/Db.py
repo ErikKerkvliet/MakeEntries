@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import pymysql
 import os
 from dotenv import load_dotenv
@@ -150,7 +152,10 @@ class DB:
         query += "'', "  # password
 
         query += "'" + data['type'] + "', "
-        query += "'old', "
+        if datetime.strptime(data['released'], '%Y-%m-%d') >= datetime.now() - timedelta(days=60):
+            query += "'new', "
+        else:
+            query += "'old', "
         query += "CURRENT_TIMESTAMP()) "
 
         self.glv.log('Inserting entry')

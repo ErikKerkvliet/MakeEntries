@@ -22,10 +22,12 @@ class Capture:
         videos = f.split("' '")
 
         for video in videos:
-            video = video.rstrip("'").lstrip("'")
+            video = video.strip().strip("'").strip('"')
             command = f'ffprobe -i "{video}" -show_entries format=duration -v quiet -of csv="p=0"'
 
             duration = os.popen(command).readlines()
+            if not duration:
+                raise ValueError(f"ffprobe gaf geen resultaat terug voor: {video}")
             between = float(duration[0]) / 23
             per_second = 1 / between
 

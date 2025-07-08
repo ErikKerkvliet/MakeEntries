@@ -188,7 +188,7 @@ class Globalvar:
         for folder in folders:
             path = f'{self.app_folder}/{vndb_id}/{folder}'
             if not os.path.isdir(path):
-                os.makedirs(path)
+                os.makedirs(path, mode=0o777)
 
     def make_char_dir(self, vndb_id, char_id):
         folder = "{}/{}/chars/{}".format(self.app_folder, vndb_id, char_id)

@@ -90,7 +90,7 @@ class AniDB:
         nr = str(count).zfill(2)
         full_title =  f'{title} Vol. {nr}'
 
-        while self.glv.db.check_duplicate(full_title, type='ova'):
+        while self.glv.db.check_duplicate(full_title, entry_type='ova'):
             count += 1
             nr = str(count).zfill(2)
             full_title = f'{title} Vol. {nr}'
