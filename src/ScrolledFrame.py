@@ -583,8 +583,8 @@ class App(Tk):
             anidb_id = self.glv.db_site.split('/')[-1]
             relation_id = self.glv.db.find_relation_by_anidb_id(anidb_id)
 
-            if relation_id != 0:
-                self.glv.db.insert_entry_relation(entry_id, relation_id)
+            relation_id = anidb_id if relation_id == 0 else relation_id
+            self.glv.db.insert_entry_relation(entry_id, relation_id)
 
             from ArchiveManager import ArchiveManager
             archive_manager = ArchiveManager(self.glv)

@@ -152,7 +152,7 @@ class DB:
         query += "'', "  # password
 
         query += "'" + data['type'] + "', "
-        if datetime.strptime(data['released'], '%Y-%m-%d') >= datetime.now() - timedelta(days=60):
+        if datetime.strptime(data['released'], '%Y/%m/%d') >= datetime.now() - timedelta(days=30):
             query += "'new', "
         else:
             query += "'old', "
