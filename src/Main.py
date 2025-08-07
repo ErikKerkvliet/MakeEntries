@@ -262,8 +262,11 @@ class Main:
             self.glv.driver.quit()
 
             # Now process the video and add it to samples
-            from Capture import Capture
-            Capture(self.glv, file)
+            # from Capture import Capture
+            # Capture(self.glv, file)
+            from VideoMontage import VideoMontageGenerator
+            vmg = VideoMontageGenerator(self.glv)
+            vmg.create_montage(file)
 
             # Update the sample list to include the generated thumbnail
             video_filename = os.path.basename(file)[:-4]
@@ -285,9 +288,10 @@ class Main:
         self.initialize_webdriver()
 
         data = self.process_entry_data()
-        # self.glv.driver.quit()
 
         self.download_and_organize_images(data)
+        self.glv.driver.quit()
+
         self.update_sample_list(data)
 
         ui = MainUI(self.glv)

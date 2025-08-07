@@ -61,7 +61,8 @@ class AniDB:
         if developer == 0:
             developer = ''
 
-        data['developer1'] = developer
+        data['developer1'] = developer[0][1] if developer else ''
+        data['developer1_id'] = developer[0][0] if developer else ''
         data['developer2'] = ''
         data['released'] = ''
         data['chars'] = []

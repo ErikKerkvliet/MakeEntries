@@ -86,7 +86,10 @@ class DB:
 
         self.glv.log('Entry has been made: {}'.format(entry_id))
 
-        if 'developer1' in data.keys() and data['developer1'] != '':
+        if 'developer1_id' in data.keys() and data['developer1_id'] != '':
+            developer_id = int(data['developer1_id'])
+            self.submit_developers(developer_id, entry_id)
+        elif 'developer1' in data.keys() and data['developer1'] != '':
             developer = data['developer1']
             developer = self.check_var_for_sql(developer)
             self.submit_developers(developer, entry_id)
@@ -164,27 +167,29 @@ class DB:
 
     def submit_developers(self, developer, entry_id):
         # table = 'developers' if self.glv.get_test() == False else 'developers_2'
-
-        query = "SELECT id FROM {} WHERE name = '{}' AND (type = 'game' OR type = 'app')".format(
-            self.glv.developers_table,
+        if isinstance(developer, int):
+            developer_id = developer
+        else:
+            query = "SELECT id FROM {} WHERE name = '{}' AND (type = 'game' OR type = 'app')".format(
+        self.glv.developers_table,
             developer
         )
 
-        developer_id = self.run_query(query)
-
-        if developer_id == 0 or developer is None:
-            # table = 'developers' if self.glv.get_test() == False else 'developers_2'
-
-            entry_type = 'ova' if self.glv.db_label == 'anidb' else 'game'
-
-            query = "INSERT INTO {}".format(self.glv.developers_table)
-            query += " (id, name, kanji, homepage, type)"
-            query += " VALUES "
-            query += "(NULL, '{}', '{}', '{}', '{}')".format(developer, '', '', entry_type)
-
             developer_id = self.run_query(query)
 
-        # entry_developers_table = 'entry_developers' if self.glv.get_test() == False else 'entry_developers_2'
+            if developer_id == 0 or developer is None:
+                # table = 'developers' if self.glv.get_test() == False else 'developers_2'
+
+                entry_type = 'ova' if self.glv.db_label == 'anidb' else 'game'
+
+                query = "INSERT INTO {}".format(self.glv.developers_table)
+                query += " (id, name, kanji, homepage, type)"
+                query += " VALUES "
+                query += "(NULL, '{}', '{}', '{}', '{}')".format(developer, '', '', entry_type)
+
+                developer_id = self.run_query(query)
+
+            # entry_developers_table = 'entry_developers' if self.glv.get_test() == False else 'entry_developers_2'
 
         query = "INSERT INTO {} ".format(self.glv.entry_developers_table)
         query += "(entry_id, developer_id)"
@@ -298,18 +303,21 @@ class DB:
             SELECT e.id FROM entries e
             LEFT JOIN entry_relations er ON er.entry_id = e.id
             WHERE e.type='ova' AND e.vndb_id={anidb_id} AND er.entry_id=er.relation_id
+            ORDER BY e.title ASC
+            LIMIT 1;
         """
         return self.run_query(query)
 
     def find_developer_by_anidb_id(self, anidb_id):
         query = f"""
-            SELECT d.name FROM entries e
+            SELECT d.* FROM entries e
             LEFT JOIN entry_relations er ON er.entry_id = e.id
             LEFT JOIN entry_developers ed ON ed.entry_id = e.id
             LEFT JOIN developers d ON d.id = ed.developer_id
             WHERE e.vndb_id = {anidb_id} AND e.type = 'ova' AND er.entry_id = er.relation_id
+            LIMIT 1;
         """
-        return self.run_query(query)
+        return self.run_query(query, False, True)
 
     def get_entry_by_id(self, entry_id):
         query = f"""
