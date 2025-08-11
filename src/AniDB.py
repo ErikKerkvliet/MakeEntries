@@ -58,11 +58,13 @@ class AniDB:
         data['webpage'] = ''
 
         developer = self.glv.db.find_developer_by_anidb_id(self.anidb_id)
-        if developer == 0:
-            developer = ''
+        if developer and len(developer) > 0:
+            data['developer1'] = developer[0][1] if developer[0][1] else ''
+            data['developer1_id'] = str(developer[0][0]) if developer[0][0] else ''
+        else:
+            data['developer1'] = ''
+            data['developer1_id'] = ''
 
-        data['developer1'] = developer[0][1] if developer else ''
-        data['developer1_id'] = developer[0][0] if developer else ''
         data['developer2'] = ''
         data['released'] = ''
         data['chars'] = []

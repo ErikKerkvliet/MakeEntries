@@ -167,6 +167,9 @@ class DB:
 
     def submit_developers(self, developer, entry_id):
         # table = 'developers' if self.glv.get_test() == False else 'developers_2'
+        if self.glv.db_label != 'anidb':
+            return
+
         if isinstance(developer, int):
             developer_id = developer
         else:
@@ -310,11 +313,10 @@ class DB:
 
     def find_developer_by_anidb_id(self, anidb_id):
         query = f"""
-            SELECT d.* FROM entries e
-            LEFT JOIN entry_relations er ON er.entry_id = e.id
+            SELECT DISTINCT d.id, d.name FROM entries e
             LEFT JOIN entry_developers ed ON ed.entry_id = e.id
             LEFT JOIN developers d ON d.id = ed.developer_id
-            WHERE e.vndb_id = {anidb_id} AND e.type = 'ova' AND er.entry_id = er.relation_id
+            WHERE e.vndb_id = {anidb_id} AND e.type = 'ova' AND d.id IS NOT NULL
             LIMIT 1;
         """
         return self.run_query(query, False, True)

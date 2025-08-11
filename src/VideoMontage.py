@@ -1,8 +1,9 @@
+import math
 import os
 import logging
 import urllib.parse
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 import cv2
 from PIL import Image
 import numpy as np
@@ -30,7 +31,7 @@ class VideoMontageGenerator:
         self.margin_size = 6
         self.margin_color = (184, 184, 184)  # #b8b8b8 in RGB
         self.output_format = 'JPEG'
-        self.montage_dir = glv.img_folder # os.getenv('DEFAULT_IMAGE_DIR')
+        self.glv = glv
 
         # Setup logging
         logging.basicConfig(
@@ -62,9 +63,6 @@ class VideoMontageGenerator:
                 raise FileNotFoundError(f"Video file not found: {video_path}")
 
             self.logger.info(f"Starting montage creation for: {video_path}")
-
-            # Create output directory
-            self._ensure_output_directory()
 
             # Extract snapshots
             snapshots = self._extract_snapshots(video_path)
@@ -172,7 +170,8 @@ class VideoMontageGenerator:
             if cap is not None:
                 cap.release()
 
-    def _resize_image(self, image: Image.Image, target_height: int) -> Image.Image:
+    @staticmethod
+    def _resize_image(image: Image.Image, target_height: int) -> Image.Image:
         """
         Resize image to target height while maintaining aspect ratio.
 
@@ -191,13 +190,13 @@ class VideoMontageGenerator:
 
     def _create_grid_montage(self, snapshots: List[Image.Image]) -> Image.Image:
         """
-        Private method to arrange snapshots in a 5x5 grid with margins.
+        Private method to arrange snapshots in a 5x5 grid with margins and gradient shadow effects.
 
         Args:
             snapshots: List of 25 PIL Image objects
 
         Returns:
-            Image.Image: PIL Image object of the complete montage
+            Image.Image: PIL Image object of the complete montage with gradient shadows
 
         Raises:
             ValueError: If incorrect number of snapshots provided
@@ -205,48 +204,156 @@ class VideoMontageGenerator:
         if len(snapshots) != 25:
             raise ValueError(f"Expected 25 snapshots, got {len(snapshots)}")
 
-        # Get dimensions of the first snapshot (all should be same height)
-        sample_width, sample_height = snapshots[0].size
+        # Enhanced shadow settings for gradient effect
+        shadow_offset = (3, 3)  # (x_offset, y_offset) - slightly larger for more dramatic effect
+        shadow_blur = 4  # Increased blur for smoother gradient
+        shadow_color = (96, 96, 96, 140)  # Darker gray with moderate transparency
 
         # Verify all snapshots have the same height
         for i, snapshot in enumerate(snapshots):
             if snapshot.size[1] != self.snapshot_height:
                 self.logger.warning(f"Snapshot {i} has incorrect height: {snapshot.size[1]}")
 
-        # Calculate montage dimensions
-        # Total width = 5 snapshots + 6 margins (before first, between each, after last)
-        # Total height = 5 snapshots + 6 margins (before first, between each, after last)
-
         # Find the maximum width among all snapshots for consistent layout
         max_width = max(snapshot.size[0] for snapshot in snapshots)
 
-        montage_width = (max_width * self.grid_size) + (self.margin_size * (self.grid_size + 1))
-        montage_height = (self.snapshot_height * self.grid_size) + (self.margin_size * (self.grid_size + 1))
+        # Add extra space for gradient shadows (more padding needed for gradient)
+        shadow_padding = shadow_blur + max(shadow_offset[0], shadow_offset[1]) + 2
+        cell_width = max_width + shadow_padding
+        cell_height = self.snapshot_height + shadow_padding
+
+        # Calculate montage dimensions with shadow padding
+        montage_width = (cell_width * self.grid_size) + (self.margin_size * (self.grid_size + 1))
+        montage_height = (cell_height * self.grid_size) + (self.margin_size * (self.grid_size + 1))
 
         self.logger.debug(f"Montage dimensions: {montage_width}x{montage_height}")
 
         # Create montage canvas with margin color background
         montage = Image.new('RGB', (montage_width, montage_height), self.margin_color)
 
-        # Place snapshots in grid
+        # Place snapshots in grid with gradient shadows
         for i, snapshot in enumerate(snapshots):
             row = i // self.grid_size
             col = i % self.grid_size
 
-            # Calculate position with margins
-            x = self.margin_size + (col * (max_width + self.margin_size))
-            y = self.margin_size + (row * (self.snapshot_height + self.margin_size))
+            # Calculate base position with margins
+            base_x = self.margin_size + (col * (cell_width + self.margin_size))
+            base_y = self.margin_size + (row * (cell_height + self.margin_size))
 
-            # Center the snapshot if it's narrower than max_width
+            # Center the snapshot within its cell if it's narrower than max_width
+            x_offset = 0
             if snapshot.size[0] < max_width:
-                x += (max_width - snapshot.size[0]) // 2
+                x_offset = (max_width - snapshot.size[0]) // 2
 
-            montage.paste(snapshot, (x, y))
+            snapshot_x = base_x + x_offset
+            snapshot_y = base_y
 
-            self.logger.debug(f"Placed snapshot {i} at position ({x}, {y})")
+            # Create gradient shadow
+            self._add_shadow_to_montage(montage, snapshot,
+                                        snapshot_x, snapshot_y,
+                                        shadow_offset, shadow_blur, shadow_color)
 
-        self.logger.info(f"Created {self.grid_size}x{self.grid_size} montage: {montage_width}x{montage_height}")
+            # Place the actual snapshot on top of the shadow
+            montage.paste(snapshot, (snapshot_x, snapshot_y))
+
+            self.logger.debug(f"Placed snapshot {i} with gradient shadow at position ({snapshot_x}, {snapshot_y})")
+
+        self.logger.info(
+            f"Created {self.grid_size}x{self.grid_size} montage with gradient shadows: {montage_width}x{montage_height}")
         return montage
+
+    def _add_shadow_to_montage(self, montage: Image.Image, snapshot: Image.Image,
+                               x: int, y: int, offset: Tuple[int, int],
+                               blur: int, shadow_color: Tuple[int, int, int, int]) -> None:
+        """
+        Add a realistic gradient drop shadow effect for a snapshot on the montage.
+
+        Args:
+            montage: The main montage image to draw the shadow on
+            snapshot: The snapshot image to create shadow for
+            x: X position where snapshot will be placed
+            y: Y position where snapshot will be placed
+            offset: Shadow offset as (x_offset, y_offset)
+            blur: Shadow blur amount
+            shadow_color: Shadow color as (R, G, B, A)
+        """
+        try:
+            # Calculate shadow position
+            shadow_x = x + offset[0]
+            shadow_y = y + offset[1]
+
+            # Create larger canvas for gradient shadow effect
+            blur_margin = blur + 2
+            shadow_width = snapshot.size[0] + (blur_margin * 2)
+            shadow_height = snapshot.size[1] + (blur_margin * 2)
+
+            # Create shadow with gradient effect
+            shadow_img = Image.new('RGBA', (shadow_width, shadow_height), (0, 0, 0, 0))
+            shadow_array = np.array(shadow_img)
+
+            # Define the core shadow area (where the snapshot would be)
+            core_left = blur_margin
+            core_top = blur_margin
+            core_right = core_left + snapshot.size[0]
+            core_bottom = core_top + snapshot.size[1]
+
+            # Create gradient shadow using distance-based alpha
+            for y_pos in range(shadow_height):
+                for x_pos in range(shadow_width):
+                    # Calculate distance from the core shadow area
+                    if core_left <= x_pos < core_right and core_top <= y_pos < core_bottom:
+                        # Inside the core area - full shadow
+                        distance = 0
+                    else:
+                        # Outside core area - calculate minimum distance to core
+                        dx = max(0, max(core_left - x_pos, x_pos - core_right + 1))
+                        dy = max(0, max(core_top - y_pos, y_pos - core_bottom + 1))
+                        distance = math.sqrt(dx * dx + dy * dy)
+
+                    # Calculate alpha based on distance (gradient falloff)
+                    if distance <= blur:
+                        # Smooth falloff using cosine function for more natural gradient
+                        falloff = math.cos((distance / blur) * (math.pi / 2))
+                        alpha = int(shadow_color[3] * falloff * falloff)  # Square for softer edge
+
+                        if alpha > 0:
+                            shadow_array[y_pos, x_pos] = [
+                                shadow_color[0],  # R
+                                shadow_color[1],  # G
+                                shadow_color[2],  # B
+                                alpha  # A
+                            ]
+
+            # Convert back to PIL Image
+            gradient_shadow = Image.fromarray(shadow_array, 'RGBA')
+
+            # Calculate position for the gradient shadow on montage
+            gradient_x = shadow_x - blur_margin
+            gradient_y = shadow_y - blur_margin
+
+            # Make sure shadow stays within montage boundaries
+            if (gradient_x + shadow_width > 0 and gradient_y + shadow_height > 0 and
+                    gradient_x < montage.size[0] and gradient_y < montage.size[1]):
+
+                # Crop shadow if it extends beyond montage boundaries
+                crop_left = max(0, -gradient_x)
+                crop_top = max(0, -gradient_y)
+                crop_right = min(shadow_width, montage.size[0] - gradient_x)
+                crop_bottom = min(shadow_height, montage.size[1] - gradient_y)
+
+                if crop_right > crop_left and crop_bottom > crop_top:
+                    cropped_shadow = gradient_shadow.crop((crop_left, crop_top, crop_right, crop_bottom))
+                    paste_x = max(0, gradient_x)
+                    paste_y = max(0, gradient_y)
+
+                    # Composite shadow onto montage
+                    temp_montage = montage.convert('RGBA')
+                    temp_montage.paste(cropped_shadow, (paste_x, paste_y), cropped_shadow)
+                    montage.paste(temp_montage.convert('RGB'), (0, 0))
+
+        except Exception as e:
+            self.logger.warning(f"Failed to create gradient shadow effect: {str(e)}")
+            # Continue without shadow if there's an error
 
     def _get_output_path(self, video_path: str) -> str:
         """
@@ -256,38 +363,15 @@ class VideoMontageGenerator:
             video_path: Path to the input video file
 
         Returns:
-            str: String path for montage file (montages/{video_filename}.jpg)
+            str: String path for montage file (samples/{video_filename}.jpg)
         """
         video_filename = Path(video_path).stem  # Get filename without extension
         output_filename = f"{video_filename}.jpg"
-        output_path = os.path.join(self.montage_dir, output_filename)
+        # Save directly to the samples folder
+        output_path = f'{self.glv.app_folder}/{self.glv.vndb_id}/samples/{output_filename}'
 
         self.logger.debug(f"Output path: {output_path}")
         return output_path
-
-    def _ensure_output_directory(self) -> None:
-        """
-        Ensure the output directory exists, create if necessary.
-
-        Raises:
-            OSError: If directory cannot be created due to permissions or disk space
-        """
-        try:
-            os.makedirs(self.montage_dir, exist_ok=True)
-            self.logger.debug(f"Output directory ready: {self.montage_dir}")
-
-            # Check write permissions
-            test_file = os.path.join(self.montage_dir, '.write_test')
-            try:
-                with open(test_file, 'w') as f:
-                    f.write('test')
-                os.remove(test_file)
-            except (OSError, IOError) as e:
-                raise OSError(f"No write permission in directory {self.montage_dir}: {str(e)}")
-
-        except OSError as e:
-            self.logger.error(f"Cannot create output directory {self.montage_dir}: {str(e)}")
-            raise
 
     def get_video_info(self, video_path: str) -> dict:
         """
@@ -353,27 +437,3 @@ class VideoMontageGenerator:
     def _clean_path(file_path):
         """Decodes URL-encoded file paths."""
         return urllib.parse.unquote(file_path).replace('file://', '')
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Example usage
-    generator = VideoMontageGenerator(log_level=logging.DEBUG)
-
-    # Test with a video file (replace with actual video path)
-    try:
-        video_path = "/home/erik/Desktop/t.mkv"  # Replace with your video file
-        if os.path.isfile(video_path):
-            # Get video info first
-            info = generator.get_video_info(video_path)
-            print(f"Video Info: {info}")
-
-            # Create montage
-            montage_path = generator.create_montage(video_path)
-            print(f"Montage created: {montage_path}")
-        else:
-            print(f"Video file not found: {video_path}")
-            print("Please provide a valid video file path to test the generator.")
-
-    except Exception as e:
-        print(f"Error: {str(e)}")
