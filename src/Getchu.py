@@ -21,6 +21,7 @@ class Getchu:
         self.char_nrs = []
         self.nrs = {}
         self.data = None
+        self.getchu_to_vndb_index = {}  # Maps Getchu char index to VNDB char index
 
     @staticmethod
     def find_str(full, sub):
@@ -41,7 +42,7 @@ class Getchu:
 
         return position
 
-    def get_entry_data(self, web_driver, getchu_id, vndb_id):
+    def get_entry_data(self, web_driver, getchu_id, vndb_id, chars_vndb=None):
         self.glv.log('')
         self.glv.log('Getting site main data')
 
@@ -66,7 +67,10 @@ class Getchu:
         try:
             for span in spans:
                 if '【は い】' in span.text or '【すすむ】' in span.text:
-                    span.click()
+                    url = span.get_attribute('href')
+                    web_driver.get(url)
+                    element = web_driver.find_element(By.XPATH, f"//a[contains(@href, '{url}')]")
+                    web_driver.execute_script("arguments[0].click();", element)
                     break
         except Exception as e:
             print("Error clicking on 'はい' span:", e)
@@ -108,7 +112,7 @@ class Getchu:
             if href is not None and 'start_date' in href:
                 data['released'] = a.get_attribute('innerHTML')
 
-        self.get_character_data(char_trs, data)
+        self.get_character_data(char_trs, data, chars_vndb)
 
         data['samples'] = []
         self.data = data
@@ -122,8 +126,22 @@ class Getchu:
 
         return data
 
-    def get_character_data(self, char_trs, data):
+    def get_character_data(self, char_trs, data, chars_vndb=None):
         self.glv.log('Getting getchu character data')
+        
+        # Build VNDB character name lookup (kanji names) with indices
+        vndb_name_map = {}  # Maps clean name -> (vndb_char, vndb_index)
+        if chars_vndb and 'chars' in chars_vndb:
+            for vndb_index, vndb_char in enumerate(chars_vndb['chars']):
+                # Store both the original name and a cleaned version for matching
+                kanji_name = vndb_char.get('name', '')
+                if kanji_name:
+                    # Clean version: remove all spaces and special characters for matching
+                    clean_name = kanji_name.replace(' ', '').replace('　', '')
+                    vndb_name_map[clean_name] = (vndb_char, vndb_index)
+                    self.glv.log(f'VNDB character {vndb_index + 1} for matching: {kanji_name} (clean: {clean_name})')
+        
+        getchu_char_index = 0
         for i, tr in enumerate(char_trs):
             if i == 0:
                 continue
@@ -134,18 +152,32 @@ class Getchu:
             if len(imgs) == 1:
                 continue
 
+            # Find getchu character ID (the number in chara1.jpg)
+            getchu_img_id = None
+            if len(imgs) > 1:
+                # Look for chara{ID}.jpg or chara{ID}.png
+                img_match = re.search(r'chara(\d+)\.(jpg|png)', imgs[1])
+                if img_match:
+                    getchu_img_id = img_match.group(1)
+
             data['chars'].append([])
             data['chars'][-1] = {}
 
             if len(imgs) > 1:
-                img1 = imgs[1].split('.png"')
-                img1 = self.page_url + img1[0] + '.png'
+                img1_path = imgs[1].split('"')[0]
+                img1 = self.page_url + img1_path
 
             img2 = ''
             if len(imgs) > 2:
-                img2 = imgs[-1].split('.png"')
-                img2 = self.page_url + img2[0] + '.png'
+                img2_path = imgs[-1].split('"')[0]
+                img2 = self.page_url + img2_path
                 img2 = img2.replace('_s', '')
+            
+            # Additional cleanup for image URLs (handle both .jpg and .png)
+            if img1:
+                img1 = img1.split('?')[0] # Remove query params
+            if img2:
+                img2 = img2.split('?')[0] # Remove query params
 
             cup = ''
             if len(imgs) > 1:
@@ -201,9 +233,48 @@ class Getchu:
                 name = name.replace('　', ' ')
                 name = name.replace('\n', '')
                 name_text = name.strip(' ')
+                # Remove HTML tags and extract clean name
                 name = re.sub(r'<[^>]+>', '', name_text).strip(' ')
+                
+                # Robust cleaning of Getchu names:
+                # 1. Remove CV info: CV：... or (CV: ...)
+                name = re.split(r'CV[:：]', name, flags=re.IGNORECASE)[0].strip()
+                # 2. Remove readings in parentheses (both full-width and half-width)
+                # Matches patterns like "(reading)", "（reading）", "( reading )"
+                name = re.sub(r'[\(\uff08].*?[\)\uff09]', '', name).strip()
+                # 3. Handle trailing dashes or punctuation that might remain after splitting
+                name = name.rstrip('－-― \n\t')
 
-            data['chars'][-1]['name'] = name.replace('<strong>', '').replace('</strong>', '')
+            # Clean the name further for matching
+            name = name.replace('<strong>', '').replace('</strong>', '')
+            
+            # Try to match with VNDB character
+            clean_name_for_match = name.replace(' ', '').replace('　', '')
+            matched_vndb_data = vndb_name_map.get(clean_name_for_match)
+            
+            if matched_vndb_data:
+                matched_vndb_char, vndb_index = matched_vndb_data
+                # Map Getchu character index to VNDB character index (1-based)
+                vndb_char_nr = vndb_index + 1
+                self.getchu_to_vndb_index[getchu_char_index + 1] = vndb_char_nr
+                if getchu_img_id:
+                    self.nrs[getchu_img_id] = vndb_char_nr
+                self.glv.log(f'✓ Matched Getchu character {getchu_char_index + 1} (ID: {getchu_img_id}) "{name}" with VNDB #{vndb_char_nr} "{matched_vndb_char.get("name", "")}"')
+            else:
+                # No match found, use sequential numbering
+                vndb_char_nr = getchu_char_index + 1
+                self.getchu_to_vndb_index[getchu_char_index + 1] = vndb_char_nr
+                if getchu_img_id:
+                    self.nrs[getchu_img_id] = vndb_char_nr
+                self.glv.log(f'✗ No VNDB match found for Getchu character {getchu_char_index + 1} (ID: {getchu_img_id}) "{name}" - falling back to #{vndb_char_nr}')
+            
+            getchu_char_index += 1
+            
+            root = '{}/{}'.format(self.glv.app_folder, self.glv.vndb_id)
+            img1_local = '{}/chars/{}/__img.jpg'.format(root, vndb_char_nr)
+            
+            data['chars'][-1]['name'] = name
+            data['chars'][-1]['image_id'] = vndb_char_nr
             data['chars'][-1]['romanji'] = ''
             data['chars'][-1]['age'] = ''
             data['chars'][-1]['cup'] = cup
@@ -211,8 +282,10 @@ class Getchu:
             data['chars'][-1]['height'] = ''
             data['chars'][-1]['weight'] = ''
             data['chars'][-1]['gender'] = 'female'
-            data['chars'][-1]['img1'] = img1.split('"')[0]
-            data['chars'][-1]['img2'] = img2.split('"')[0]
+            data['chars'][-1]['img1'] = img1_local # Use local path
+            data['chars'][-1]['img2'] = '' # Will be reconstructed as char.jpg
+            data['chars'][-1]['getchu_img1'] = img1.split('"')[0] # Store original URL just in case
+            data['chars'][-1]['getchu_img2'] = img2.split('"')[0]
 
             self.glv.log('-------------------------------------------------------------')
             self.glv.log('Name: {}'.format(data['chars'][-1]['name']))
@@ -243,129 +316,143 @@ class Getchu:
         if 'anidb' in self.glv.db_label:
             script = "$('.highslide').first().click()"
             driver.execute_script(script)
-            high_slide_images = [self.glv.get_elements('class', 'highslide', True)]
+            high_slide_indices = [0]
         else:
             script = "$('.highslide').click()"
             driver.execute_script(script)
-            high_slide_images = self.glv.get_elements('class', 'highslide')
+            # Find all elements with class highslide
+            high_slide_elements = self.glv.get_elements('class', 'highslide')
+            high_slide_indices = list(range(len(high_slide_elements)))
 
         root = '{}/{}'.format(self.glv.app_folder, vndb_id)
         root_temp = '{}/temp'.format(root)
 
         self.glv.sleep(2)
 
+        # Handle character screenshots from the main page
         images = self.glv.get_elements('tag', 'img')
-        char_nr = 1
         for image in images:
             src = image.get_attribute('src')
+            if not src:
+                continue
             image_name = src.split('/')[-1]
 
             if '_' not in image_name and 'charab' not in image_name and 'chara' in image_name:
-                nr = image_name.split('chara')[1].split('.')[0]
-                self.nrs[nr] = char_nr
-                self.char_nrs.append(char_nr)
-                img_name = '__img{}'.format(char_nr)
-                char_nr += 1
-                self.save_image_screenshot(driver, root_temp, image, img_name)
+                nr_match = re.search(r'chara(\d+)', image_name)
+                if nr_match:
+                    nr = nr_match.group(1)
+                    vndb_char_nr = self.nrs.get(nr)
+                    if vndb_char_nr:
+                        img_name = 'char_{}_img1'.format(vndb_char_nr)
+                        self.glv.log(f'Saving character screenshot: Getchu ID {nr} -> VNDB nr {vndb_char_nr}')
+                        self.save_image_screenshot(driver, root_temp, image, img_name)
 
-        length = len(high_slide_images)
-        for i in range(0, length):
-            tab = length - i
-            driver.switch_to.window(driver.window_handles[tab])
-
+        # Handle highslide images (samples and covers)
+        window_handles = driver.window_handles
+        # The first handle is the main window, others are opened highslide images
+        sample_nr = 1
+        for i, handle in enumerate(window_handles[1:], 1):
+            driver.switch_to.window(handle)
             url = driver.current_url
-
-            if 'anidb.net' in self.glv.db_site and 'package' not in url:
+            
+            # Identify what kind of image this is
+            if 'anidb.net' in self.glv.db_label and 'package' not in url:
                 continue
 
-            if '_' in url or not ('chara' in url or 'table' in url or 'package' in url or 'sample' in url):
-                continue
+            name = ''
+            if 'package' in url:
+                name = 'cover1'
+            elif 'sample' in url or 'table' in url:
+                name = 'sample_{}'.format(sample_nr)
+                sample_nr += 1
+            elif 'chara' in url:
+                nr_match = re.search(r'chara[b]?(\d+)', url)
+                if nr_match:
+                    nr = nr_match.group(1)
+                    vndb_char_nr = self.nrs.get(nr)
+                    if vndb_char_nr:
+                        name = 'char_{}_img2'.format(vndb_char_nr)
 
-            tab_img = self.glv.get_element('tag', 'img')
-            if tab_img == 0:
-                continue
-            try:
-                WebDriverWait(driver, 1).until(
-                    ec.presence_of_element_located((By.TAG_NAME, 'img')))
-            except TimeoutException:
-                print("Loading took too much time!")
-
-            self.save_image_screenshot(driver, root_temp, tab_img)
+            if name:
+                try:
+                    WebDriverWait(driver, 5).until(ec.presence_of_element_located((By.TAG_NAME, 'img')))
+                    tab_img = self.glv.get_element('tag', 'img')
+                    if tab_img != 0:
+                        self.save_image_screenshot(driver, root_temp, tab_img, name)
+                except TimeoutException:
+                    self.glv.log(f"Timeout waiting for image in {url}")
+            
+            # Close the current highslide window after processing
+            driver.close()
+        
+        # Switch back to the main window
+        driver.switch_to.window(window_handles[0])
 
         self.glv.log('')
 
     def save_image_screenshot(self, driver, save_location, image, name=''):
-
         if name == '':
             src = image.get_attribute('src')
-            if 'charab' in src:
-                nr = src.split('charab')[1].split('.')[0]
-                if nr not in self.nrs.keys():
-                    return
+            if not src:
+                return
+            name = src.split('/')[-1].split('.')[0]
+        
+        image_name = f"{name}.png"
+        full_png_path = os.path.join(save_location, image_name)
+        full_jpg_path = full_png_path.replace('.png', '.jpg')
 
-                image_name = f'char{self.nrs[nr]}.png'
-            else:
-                image_name = src.split('/')[-1].split('.')[0] + '.png'
-        else:
-            image_name = name + '.png'
+        self.glv.log(f'Save: {image_name} to: {save_location}/')
+
+        # Wait for image to be fully loaded
+        try:
+            WebDriverWait(driver, 10).until(
+                lambda d: image.get_attribute('complete') == 'true' and 
+                          image.size['width'] > 0 and 
+                          image.size['height'] > 0
+            )
+        except Exception as e:
+            self.glv.log(f'Warning: Image may not be fully loaded: {e}')
 
         location = image.location_once_scrolled_into_view
-
-        self.glv.log('Save: {} to: {}/'.format(image_name, save_location))
-
         size = image.size
 
-        driver.save_screenshot(image_name)
+        # Take screenshot of the whole page first
+        # Note: In Headless mode or some setups, this might be tricky, but we assume it works here
+        driver.save_screenshot(full_png_path)
 
-        image = Image.open(image_name)
+        # Crop the screenshot to the image
+        img = Image.open(full_png_path)
+        img_width, img_height = img.size
+        
         left = location['x']
         top = location['y']
         right = location['x'] + size['width']
         bottom = location['y'] + size['height']
-        image = image.crop((left, top, right, bottom))  # defines crop points
+        
+        # Clamp coordinates
+        left = max(0, min(left, img_width))
+        top = max(0, min(top, img_height))
+        right = max(0, min(right, img_width))
+        bottom = max(0, min(bottom, img_height))
+        
+        if right <= left or bottom <= top:
+            self.glv.log(f'Warning: Invalid crop region for {image_name}, skipping')
+            if os.path.exists(full_png_path): os.remove(full_png_path)
+            return
+        
+        img = img.crop((left, top, right, bottom))
+        img.save(full_png_path, 'png')
 
-        full_image_name = '{}/{}'.format(save_location, image_name)
-        image.save(full_image_name, 'png')  # saves new cropped image
-
-        count = 0
-        while not os.path.isfile(full_image_name):
-            time.sleep(0.1)
-            count += 1
-
-        if count == 5:
-            input("Waiting for input.")
-
-        new_image = full_image_name.replace('.png', '.jpg')
-        if '/temp/' in full_image_name and '__img' in full_image_name:
-            nr = re.findall(r'\d+', full_image_name.split('/')[-1])[0]
-
-            new_image = new_image.replace(new_image.split('/temp/')[-1], f'{nr}/__img.jpg')
-            new_image = new_image.replace('/temp/', f'/chars/')
-            new_folder = new_image.split('/__')[0]
-            if not os.path.isdir(new_folder):
-                os.makedirs(new_folder)
-
-        count = 0
-        while not os.path.isfile(full_image_name):
-            time.sleep(0.1)
-            count += 1
-
-        if count == 5:
-            input("Waiting for input.")
-
-        command = 'convert {} {}'.format(full_image_name, new_image)
-        os.system(command)
-
-        while not os.path.isfile(new_image):
-            time.sleep(0.1)
-            count += 1
-
-        if count == 5:
-            input(new_image)
-
-        command = 'rm {}'.format(image_name)
-
-        os.system(command)
+        # Convert to JPG using PIL instead of system 'convert' for portability and speed
+        try:
+            rgb_img = img.convert('RGB')
+            rgb_img.save(full_jpg_path, 'JPEG', quality=95)
+            self.glv.log(f'Saved: {full_jpg_path}')
+        except Exception as e:
+            self.glv.log(f'Error converting {image_name} to jpg: {e}')
+        finally:
+            if os.path.exists(full_png_path):
+                os.remove(full_png_path)
 
 
 

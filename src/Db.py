@@ -44,11 +44,24 @@ class DB:
 
         # table = 'entries' if self.glv.get_test() == False else 'entries_2'
 
-        query = "SELECT id AS `rows` FROM {} WHERE type = '{}' AND (title = '{}' OR romanji = '{}')".format(
+        if title == romanji and romanji == '':
+            message = "No title for entry."
+            self.glv.log(message, 'error', driver)
+            self.glv.quit()
+
+        title_part = ''
+        if romanji != '':
+            title_part += "romanji = '{}'".format(romanji)
+
+        if title != '':
+            if title_part != '':
+                title_part += " OR "
+            title_part += "title = '{}'".format(title)
+
+        query = "SELECT id AS `rows` FROM {} WHERE type = '{}' AND ({})".format(
             self.glv.entries_table,
             entry_type,
-            title,
-            romanji
+            title_part
         )
 
         entry_id = self.run_query(query)
@@ -167,13 +180,13 @@ class DB:
 
     def submit_developers(self, developer, entry_id):
         # table = 'developers' if self.glv.get_test() == False else 'developers_2'
-        if self.glv.db_label != 'anidb':
-            return
+        # if self.glv.db_label != 'anidb':
+        #     return
 
         if isinstance(developer, int):
             developer_id = developer
         else:
-            query = "SELECT id FROM {} WHERE name = '{}' AND (type = 'game' OR type = 'app')".format(
+            query = "SELECT id FROM {} WHERE name = '{}'".format(
         self.glv.developers_table,
             developer
         )

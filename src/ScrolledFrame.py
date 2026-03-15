@@ -61,8 +61,11 @@ class ScrolledFrame(Frame):
         self.interior.bind('<Configure>', self._configure_interior)
         self.canvas.bind('<Configure>', self._configure_canvas)
 
-        # Bind mouse wheel to canvas for scrolling
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        # Bind mouse wheel to canvas for scrolling only when hovering over this frame
+        self.canvas.bind('<Enter>', self._bind_mousewheel)
+        self.canvas.bind('<Leave>', self._unbind_mousewheel)
+        self.interior.bind('<Enter>', self._bind_mousewheel)
+        self.interior.bind('<Leave>', self._unbind_mousewheel)
 
     def _configure_interior(self, event):
         # Update the scrollbars to match the size of the inner frame
@@ -77,14 +80,29 @@ class ScrolledFrame(Frame):
             # Update the inner frame's width to fill the canvas
             self.canvas.itemconfigure(self.interior_id, width=self.canvas.winfo_width())
 
+    def _bind_mousewheel(self, event):
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind_all("<Button-4>", self._on_mousewheel)
+        self.canvas.bind_all("<Button-5>", self._on_mousewheel)
+
+    def _unbind_mousewheel(self, event):
+        self.canvas.unbind_all("<MouseWheel>")
+        self.canvas.unbind_all("<Button-4>")
+        self.canvas.unbind_all("<Button-5>")
+
     def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        if event.num == 4:
+            self.canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            self.canvas.yview_scroll(1, "units")
+        else:
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def create_info_ui(self, parent):
         # Create entry fields for various information
         entries = {
-            'title': self.create_entry(parent, 115, 8, 900, 25, 'title'),
-            'romanji': self.create_entry(parent, 115, 38, 900, 25, 'romanji'),
+            'title': self.create_entry(parent, 115, 8, 845, 25, 'title'),
+            'romanji': self.create_entry(parent, 115, 38, 845, 25, 'romanji'),
             'developer1': self.create_entry(parent, 115, 68, 450, 25, 'developer 1'),
             'developer2': self.create_entry(parent, 115, 98, 450, 25, 'developer 2'),
             'released': self.create_entry(parent, 115, 128, 100, 25, 'released'),
@@ -218,22 +236,23 @@ class ScrolledFrame(Frame):
             self.top.destroy()
 
         self.top = Toplevel()
+        self.top.withdraw()  # Hide window while positioning
 
         photo = ImageTk.PhotoImage(image)
         width = photo.width() + 4
         height = photo.height() + 4
 
-        resolution = self.get_screen_resolution()
-        loc_x = resolution[0] / 2 - width / 2
-        loc_y = resolution[1] / 2 - height / 2
-
-        loc_y = 0 if loc_y < 0 else math.floor(loc_y)
-        loc_x = 0 if loc_x < 0 else math.floor(loc_x)
+        # Center the pop-up relative to the main app window
+        root = self.winfo_toplevel()
+        root.update_idletasks()
+        
+        loc_x = root.winfo_x() + (root.winfo_width() // 2) - (width // 2)
+        loc_y = root.winfo_y() + (root.winfo_height() // 2) - (height // 2)
 
         self.top.title('')
-
         self.top.geometry("{}x{}+{}+{}".format(width, height, loc_x, loc_y))
         self.top.resizable(False, False)
+        self.top.deiconify()  # Show window once positioned
 
         frame = Frame(master=self.top)
         frame.pack_propagate(False)
@@ -338,7 +357,7 @@ class ScrolledFrame(Frame):
         if char['age'] != '':
             self.charAgeEntry[-1].insert(0, char['age'])
 
-        char['img2'] = char['img1'].replace('__img', 'char')
+        char['img2'] = char['img1'].replace('__img', 'charb')
         if os.path.isfile(char['img2']):
             image = Image.open(char['img2'])
 
@@ -471,37 +490,37 @@ class App(Tk):
         self.glv = glv
 
         # Create main scrolled frame
-        self.frame = ScrolledFrame(root, 98, relief='sunken')
+        self.frame = ScrolledFrame(root, 45, relief='sunken')
         self.frame.pack()
-        self.frame.place(x=5, y=258, width=1014, height=511)
+        self.frame.place(x=5, y=240, width=960, height=380)
 
         # Create checkboxes for various options
         self.useCharCheckVar = IntVar()
         use_char_check = Checkbutton(root, text="Use characters", anchor=W, variable=self.useCharCheckVar)
         use_char_check.select()
         use_char_check.pack()
-        use_char_check.place(x=10, y=224)
+        use_char_check.place(x=10, y=216)
 
         self.useCupCheckVar = IntVar()
         use_cup_check = Checkbutton(root, text="Use cup sizes", anchor=W, variable=self.useCupCheckVar)
         use_cup_check.pack()
-        use_cup_check.place(x=200, y=224)
+        use_cup_check.place(x=200, y=216)
 
         self.useImgVar = IntVar()
         use_img_check = Checkbutton(root, text="Use images", anchor=W, variable=self.useImgVar)
         use_img_check.select()
         use_img_check.pack()
-        use_img_check.place(x=400, y=224)
+        use_img_check.place(x=400, y=216)
 
         # Create secondary scrolled frame
-        self.frame2 = ScrolledFrame(root, 60)
+        self.frame2 = ScrolledFrame(root, 12)
         self.frame2.pack()
-        self.frame2.place(x=5, y=784, width=1014, height=180)
+        self.frame2.place(x=5, y=639, width=960, height=180)
 
         # Create decorative labels
-        Label(root, relief='raised').place(x=5, y=258, width=1013, height=2)
-        Label(root, relief='sunken').place(x=5, y=767, width=1014, height=18)
-        Label(root, relief='sunken').place(x=5, y=962, width=1013, height=2)
+        Label(root, relief='raised').place(x=5, y=240, width=1013, height=2)
+        Label(root, relief='sunken').place(x=5, y=622, width=1014, height=18)
+        Label(root, relief='sunken').place(x=5, y=817, width=1013, height=2)
 
     def submit(self, top_data):
         self.glv.log('Submit')
@@ -684,7 +703,7 @@ class App(Tk):
 
         submit_button = Button(parent, text='Submit', font=("Calibri", 12), command=lambda: self.submit(data))
         submit_button.pack()
-        submit_button.place(x=920, y=210, height=30, width=100)
+        submit_button.place(x=860, y=205, height=30, width=100)
 
     @staticmethod
     def check_var_for_sql(var):

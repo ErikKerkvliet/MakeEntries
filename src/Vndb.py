@@ -32,6 +32,7 @@ class Vndb:
             cover = self.glv.get_element_old(cover[0], 'tag', 'img')
 
             data['cover'] = cover.get_attribute('src') if cover != 0 else ''
+            data['cover'] = data['cover'].replace('.t', '')
 
         self.glv.log('Cover vndb: {}'.format(data['cover']))
 
@@ -132,7 +133,7 @@ class Vndb:
                 if name != 0:
                     name_str = name.get_attribute('innerHTML')
                     name_text = name_str.replace('　', ' ')
-                    data['chars'][count]['name'] = re.sub(r'<[^>]+>', '', name_text)
+                    data['chars'][count]['name'] = re.sub(r'<[^>]+>', '', name_text).strip()
                 elif data['chars'][count]['romanji'] != '':
                     name_text = data['chars'][count]['romanji']
                     data['chars'][count]['name'] = re.sub(r'<[^>]+>', '', name_text)

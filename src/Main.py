@@ -120,7 +120,8 @@ class Main:
         chars_vndb = vndb.get_char_data()
 
         # Get data from site source (Getchu or Dlsite)
-        data_site = site.get_entry_data(self.glv.driver, self.site_id, self.vndb_id)
+        # Pass VNDB character data to site for character matching
+        data_site = site.get_entry_data(self.glv.driver, self.site_id, self.vndb_id, chars_vndb)
 
         return self.combine_data(data_vndb, chars_vndb, data_site)
 
@@ -140,37 +141,53 @@ class Main:
         }
 
         chars = self.combine_character_data(data_site['chars'], chars_vndb['chars'])
-        data['chars'] = chars
 
-        data['chars'] = self.character_handler.characters(data['chars'])
+        data['chars'] = self.character_handler.characters(chars)
 
         return data
 
     def combine_character_data(self, site_chars, vndb_chars):
-        """Combine character data from different sources"""
+        """Combine character data from different sources, prioritized by VNDB order"""
         chars = []
-        done = []
+        
+        # Use VNDB list as the base to maintain order
+        for i, v_char in enumerate(vndb_chars):
+            v_entry = self.create_character_entry(v_char)
+            v_entry['image_id'] = i + 1
+            v_name_clean = v_entry['name'].replace(' ', '').replace('　', '')
+            
+            # Try to find match in site_chars
+            for s_char in site_chars:
+                s_name_clean = s_char['name'].replace(' ', '').replace('　', '')
+                if v_name_clean == s_name_clean or s_char.get('image_id') == i + 1:
+                    # Found match, update with site data (images, cup, etc)
+                    s_entry = self.create_character_entry(s_char)
+                    # Don't overwrite image_id if it's already set to VNDB index
+                    s_entry.pop('image_id', None)
+                    v_entry.update(s_entry)
+                    v_entry['image_id'] = i + 1 
+                    break
+            
+            chars.append(v_entry)
 
-        for site in site_chars:
-            name = site['name'].replace(' ', '').replace('　', '')
-            done.append(name)
-            chars.append(self.create_character_entry(site))
+        # Add characters from site that didn't match VNDB
+        v_names = [c['name'].replace(' ', '').replace('　', '') for c in chars]
+        for s_char in site_chars:
+            s_name_clean = s_char['name'].replace(' ', '').replace('　', '')
+            if s_name_clean not in v_names and s_char.get('image_id', 0) > len(vndb_chars):
+                new_entry = self.create_character_entry(s_char)
+                # Ensure it has a unique image_id
+                if not new_entry.get('image_id'):
+                    new_entry['image_id'] = len(chars) + 1
+                chars.append(new_entry)
 
-        for vndb in vndb_chars:
-            name = vndb['name'].replace(' ', '').replace('　', '')
-            if name not in done:
-                chars.append(self.create_character_entry(vndb))
-                done.append(name)
-            else:
-                index = done.index(name)
-                chars[index].update(self.create_character_entry(vndb))
+        return chars
 
-        return [char for char in chars if char['img1']]
-
+            
     @staticmethod
     def create_character_entry(char_data):
         """Create a character entry from given data"""
-        return {
+        entry = {
             'name': char_data['name'],
             'romanji': char_data.get('romanji', ''),
             'gender': char_data.get('gender', ''),
@@ -182,6 +199,11 @@ class Main:
             'img1': char_data.get('img1', ''),
             'img2': char_data.get('img2', '')
         }
+        
+        if 'image_id' in char_data and char_data['image_id'] is not None:
+            entry['image_id'] = char_data['image_id']
+            
+        return entry
 
     def download_and_organize_images(self, data):
         """Download and organize images"""
@@ -196,34 +218,49 @@ class Main:
         self.organize_images(root, root_temp, files)
 
     def organize_images(self, root, root_temp, files):
-        """Organize downloaded images into appropriate directories"""
-        sample_nr = 0
+        """Organize downloaded images into appropriate directories using standardized naming"""
         for f in files:
-            if '.png' in f:
+            old_file = os.path.join(root_temp, f)
+            if not os.path.isfile(old_file):
                 continue
 
-            name = f.replace('.jpg', '')
-            old_file = f'{root_temp}/{name}.jpg'
-
             move_to = None
-            if 'package' in f or '_cover_1' in f:
+            
+            # Covers
+            if 'cover1' in f:
                 move_to = f'{root}/_cover_1.jpg'
-            elif '_cover_2' in f:
+            elif 'cover2' in f:
                 move_to = f'{root}/_cover_2.jpg'
-            elif 'sample' in f or 'table' in f:
-                sample_nr += 1
-                move_to = f'{root}/samples/sample{sample_nr}.jpg'
-            elif 'char' in f or '__img' in f:
-                number = re.sub("[^0-9]", "", f)
-                nr = int(number)
-                move_to = f'{root}/chars/{nr}/{"char" if "char" in f else "__img"}.jpg'
-                self.glv.make_char_dir(self.vndb_id, nr)
+            
+            # Samples (matches sample_#.jpg)
+            elif 'sample_' in f:
+                match = re.search(r'sample_(\d+)', f)
+                if match:
+                    nr = match.group(1)
+                    move_to = f'{root}/samples/sample{nr}.jpg'
+            
+            # Characters (matches char_#_img#.jpg)
+            elif 'char_' in f:
+                match = re.search(r'char_(\d+)_img(\d)', f)
+                if match:
+                    nr = int(match.group(1))
+                    img_type = match.group(2)
+                    self.glv.make_char_dir(self.vndb_id, nr)
+                    
+                    if img_type == '1':
+                        move_to = f'{root}/chars/{nr}/__img.jpg'
+                    else:
+                        move_to = f'{root}/chars/{nr}/charb.jpg'
 
-            if 'anidb.net' in self.glv.db_site and 'package' in old_file:
-                to = move_to.replace('_1', '_2')
-                self.move_file(old_file, to, 'cp')
+            if move_to:
+                # Handle AniDB specific cover swapping if needed
+                if self.glv.db_label == 'anidb' and 'cover' in f:
+                    # Special logic for AniDB if needed, but for now just move
+                    pass
 
-            self.move_file(old_file, move_to)
+                self.move_file(old_file, move_to)
+            else:
+                self.glv.log(f'Unknown file in temp: {f}')
 
     def move_file(self, old_file, new_file, command_type='mv'):
         """Move a file from one location to another"""
@@ -261,20 +298,21 @@ class Main:
 
             self.glv.driver.quit()
 
-            # Now process the video and add it to samples
-            # from Capture import Capture
-            # Capture(self.glv, file)
-            from VideoMontage import VideoMontageGenerator
-            vmg = VideoMontageGenerator(self.glv)
-            vmg.create_montage(file)
+            if len(sys.argv) == 3:
+                # Now process the video and add it to samples
+                # from Capture import Capture
+                # Capture(self.glv, file)
+                from VideoMontage import VideoMontageGenerator
+                vmg = VideoMontageGenerator(self.glv)
+                vmg.create_montage(file)
 
-            # Update the sample list to include the generated thumbnail
-            video_filename = os.path.basename(file)[:-4]
-            sample_path = f'{self.glv.app_folder}/{self.vndb_id}/samples/{video_filename}.jpg'
-            if os.path.exists(sample_path):
-                if not isinstance(data['samples'], list):
-                    data['samples'] = []
-                data['samples'].append(sample_path)
+                # Update the sample list to include the generated thumbnail
+                video_filename = os.path.basename(file)[:-4]
+                sample_path = f'{self.glv.app_folder}/{self.vndb_id}/samples/{video_filename}.jpg'
+                if os.path.exists(sample_path):
+                    if not isinstance(data['samples'], list):
+                        data['samples'] = []
+                    data['samples'].append(sample_path)
 
             self.download_and_organize_images(data)
             self.update_sample_list(data)
@@ -302,7 +340,7 @@ class Main:
 if __name__ == "__main__":
     # try:
     main = Main()
-    if len(sys.argv) == 2:
+    if len(sys.argv) == 2 or len(sys.argv) == 3 and sys.argv[2] == 'ova':
         main.start(sys.argv[1])
         sys.exit(1)
     if len(sys.argv) == 3:

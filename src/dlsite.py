@@ -19,7 +19,7 @@ class DlSite:
         self.vndb_id = ''
         self.soup = None
         
-    def get_entry_data(self, driver, dlsite_id, vndb_id):
+    def get_entry_data(self, driver, dlsite_id, vndb_id, chars_vndb=None):
         
         print('Get dlsite main data')
         
@@ -49,7 +49,6 @@ class DlSite:
         return data
 
     def get_images(self, data):
-
         img_tags = self.soup.find_all('img')
         data_src_tags = self.soup.find_all('div', attrs={'data-src': True})
 
@@ -65,7 +64,6 @@ class DlSite:
         for div in data_src_tags:
             data_src = div.get('data-src')
             if data_src and data_src.endswith('_img_main.jpg'):
-                # Construct full URL
                 full_url = urljoin(self.base_url, data_src.replace('///', '//'))
                 image_urls.append(full_url)
 
@@ -79,20 +77,23 @@ class DlSite:
         image_urls = list(set(image_urls))
 
         root = '{}/{}'.format(self.glv.app_folder, self.glv.vndb_id)
-        root_temp = '{}/samples'.format(root)
+        root_temp = '{}/temp'.format(root)
+        
+        if not os.path.exists(root_temp):
+            os.makedirs(root_temp)
 
+        sample_count = 0
         for url in image_urls:
-            # Extract the image filename from the URL
-            filename = os.path.basename(url)
-            save_path = os.path.join(root_temp, filename)
-            if 'main' in url and data['cover'] == '':
-                data['cover'] = save_path
-                save_path = f'{root}/_cover_1.jpg'
-                if os.path.exists(save_path):
-                    save_path = f'{root}/_cover_2.jpg'
-                    data['cover2'] = save_path
-                else:
-                    data['cover1'] = save_path
+            if 'main' in url:
+                filename = 'cover1.jpg'
+                save_path = os.path.join(root_temp, filename)
+                data['cover'] = '{}/_cover_1.jpg'.format(root)
+            else:
+                sample_count += 1
+                filename = f'sample_{sample_count}.jpg'
+                save_path = os.path.join(root_temp, filename)
+                data['samples'].append('{}/samples/sample{}.jpg'.format(root, sample_count))
+
             self.download_image(url, save_path)
 
         return data

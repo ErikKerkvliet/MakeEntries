@@ -203,39 +203,39 @@ class Globalvar:
 
         root = '{}/{}'.format(self.app_folder, vndb_id)
 
-        if data['cover1'] != '':
-            self.download_url(data['cover1'], '_cover_1.jpg')
+        # Download covers
+        if data.get('cover1') and data['cover1'].startswith('http'):
+            self.download_url(data['cover1'], 'cover1.jpg')
             data['cover1'] = '{}/_cover_1.jpg'.format(root)
-        if data['cover2'] != '':
-            self.download_url(data['cover2'], '_cover_2.jpg')
+        if data.get('cover2') and data['cover2'].startswith('http'):
+            self.download_url(data['cover2'], 'cover2.jpg')
             data['cover2'] = '{}/_cover_2.jpg'.format(root)
 
         for j, char in enumerate(chars):
-            img2 = ''
-            j_up = j + 1
+            j_up = char.get('image_id', j + 1)
+            j_up = int(j_up)
 
-            root_char = '{}/chars/{}'.format(root, j_up)
+            # Download img1 if it's a URL
+            if char['img1'].startswith('http'):
+                filename = 'char_{}_img1.jpg'.format(j_up)
+                self.download_url(char['img1'], filename)
+                char['img1'] = '{}/chars/{}/__img.jpg'.format(root, j_up)
 
-            self.make_char_dir(vndb_id, j_up)
+            # Download img2 if it's a URL
+            if char.get('img2') and char['img2'].startswith('http'):
+                filename = 'char_{}_img2.jpg'.format(j_up)
+                self.download_url(char['img2'], filename)
+                char['img2'] = '{}/chars/{}/charb.jpg'.format(root, j_up)
 
-            self.download_url(char['img1'], '__img{}.jpg'.format(j_up))
-
-            img1 = '{}/__img.jpg'.format(root_char)
-            if char['img2'] != '' and char['img2'].split('"')[0] != '':
-                self.download_url(char['img2'], 'char{}'.format(j_up))
-
-                img2 = ''
-
-            data['chars'][j]['img1'] = img1
-            data['chars'][j]['img2'] = img2
-
-        root_samples = '{}/samples'.format(root)
         new_samples = []
         for i, sample in enumerate(samples):
-            i_up = i + 1
-            self.download_url(sample, 'sample{}'.format(i_up))
-
-            new_samples.append('{}/sample{}.jpg'.format(root_samples, i_up))
+            if sample.startswith('http'):
+                i_up = i + 1
+                filename = 'sample_{}.jpg'.format(i_up)
+                self.download_url(sample, filename)
+                new_samples.append('{}/samples/sample{}.jpg'.format(root, i_up))
+            else:
+                new_samples.append(sample)
 
         data['samples'] = new_samples
 
@@ -248,27 +248,26 @@ class Globalvar:
 
     def download_url(self, url, filename):
         url = url.split('"')[0]
+        self.log('Download url: {} to: {}'.format(url, filename))
 
-        if 'vndb.org' in url:
-            self.log('Download url: {} to: {}'.format(url, filename))
+        file = '{}/{}'.format(self.downloadFolder, filename)
+        if os.path.isfile(file):
+            self.log('File already exists')
+            return
 
-            self.sleep(1)
-            file = '{}/{}'.format(self.downloadFolder, filename)
-            if os.path.isfile(file):
-                self.log('File already exists')
-                return
-            try:
+        try:
+            if 'vndb.org' in url:
                 urllib.request.urlretrieve(url, file)
-                self.log('Downloaded')
-            except Exception as exc:
-                self.log(exc)
-
-                print(type(exc))
-                print(exc.args)
-                print(exc)
-                print(url)
-                return
-
+            else:
+                import requests
+                response = requests.get(url, stream=True, timeout=10)
+                response.raise_for_status()
+                with open(file, 'wb') as f:
+                    for chunk in response.iter_content(1024):
+                        f.write(chunk)
+            self.log('Downloaded')
+        except Exception as exc:
+            self.log(f'Failed to download {url}: {exc}')
             return
 
     @staticmethod
