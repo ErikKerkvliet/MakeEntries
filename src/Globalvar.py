@@ -66,7 +66,10 @@ class Globalvar:
         self.errorMessage += '\n'
         print(message)
         if log_type == 'error':
-            browser.quit()
+            if browser:
+                browser.quit()
+            elif self.driver:
+                self.driver.quit()
 
     @staticmethod
     def get_screen_resolution():

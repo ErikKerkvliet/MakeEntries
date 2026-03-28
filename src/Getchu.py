@@ -92,7 +92,7 @@ class Getchu:
          
         source = web_driver.page_source
 
-        start = self.find_str(source, '<div class="tabletitle">&nbsp;キャラクター</div>')
+        start = self.find_str(source, '<table border="0" style="width: 100%;padding: 5px;">')
         sub_str = source[start:]
 
         end = self.find_str(sub_str, '</tbody></table>')
@@ -133,119 +133,108 @@ class Getchu:
         vndb_name_map = {}  # Maps clean name -> (vndb_char, vndb_index)
         if chars_vndb and 'chars' in chars_vndb:
             for vndb_index, vndb_char in enumerate(chars_vndb['chars']):
+                index = vndb_index
+                if vndb_char.get('img', '') == '':
+                    index -= 1
+                    continue
+
                 # Store both the original name and a cleaned version for matching
                 kanji_name = vndb_char.get('name', '')
                 if kanji_name:
                     # Clean version: remove all spaces and special characters for matching
                     clean_name = kanji_name.replace(' ', '').replace('　', '')
-                    vndb_name_map[clean_name] = (vndb_char, vndb_index)
-                    self.glv.log(f'VNDB character {vndb_index + 1} for matching: {kanji_name} (clean: {clean_name})')
+                    vndb_name_map[clean_name] = (vndb_char, index)
+                    self.glv.log(f'VNDB character {index + 1} for matching: {kanji_name} (clean: {clean_name})')
         
         getchu_char_index = 0
         for i, tr in enumerate(char_trs):
             if i == 0:
                 continue
 
-            imgs = tr.split('src=".')
+            # Extract all src attributes from this row using regex
+            all_srcs = re.findall(r'src="([^"]+)"', tr)
 
-            img1 = ''
-            if len(imgs) == 1:
-                continue
-
-            # Find getchu character ID (the number in chara1.jpg)
+            # Find the main character portrait: chara{N}.jpg (no 'b', no '_s')
+            img1_src = None
             getchu_img_id = None
-            if len(imgs) > 1:
-                # Look for chara{ID}.jpg or chara{ID}.png
-                img_match = re.search(r'chara(\d+)\.(jpg|png)', imgs[1])
-                if img_match:
-                    getchu_img_id = img_match.group(1)
+            for src in all_srcs:
+                m = re.search(r'chara(\d+)\.(jpg|png)$', src)
+                if m and 'charab' not in src:
+                    img1_src = src
+                    getchu_img_id = m.group(1)
+                    break
+
+            # Find the alternate/body image: charab{N}.jpg (without _s thumbnail suffix)
+            img2_src = None
+            for src in all_srcs:
+                if 'charab' in src and '_s' not in src:
+                    img2_src = src
+                    break
+            # If only the thumbnail _s version exists, strip the suffix
+            if img2_src is None:
+                for src in all_srcs:
+                    if 'charab' in src:
+                        img2_src = src.replace('_s', '')
+                        break
+
+            img1 = (self.page_url + img1_src) if img1_src else ''
+            img2 = (self.page_url + img2_src) if img2_src else ''
+
+            # Skip rows that have no character image and no character name
+            has_chara_name = 'class="chara-name"' in tr
+            if not img1_src and not has_chara_name:
+                continue
 
             data['chars'].append([])
             data['chars'][-1] = {}
 
-            if len(imgs) > 1:
-                img1_path = imgs[1].split('"')[0]
-                img1 = self.page_url + img1_path
-
-            img2 = ''
-            if len(imgs) > 2:
-                img2_path = imgs[-1].split('"')[0]
-                img2 = self.page_url + img2_path
-                img2 = img2.replace('_s', '')
-            
-            # Additional cleanup for image URLs (handle both .jpg and .png)
+            # Remove query params
             if img1:
-                img1 = img1.split('?')[0] # Remove query params
+                img1 = img1.split('?')[0]
             if img2:
-                img2 = img2.split('?')[0] # Remove query params
+                img2 = img2.split('?')[0]
 
             cup = ''
-            if len(imgs) > 1:
-                if 'カップ' in imgs[1]:
-                    cup_split = imgs[1].split('カップ')[0]
-                    cup = cup_split[-1]
-                elif '<span>' in imgs[1]:
-                    span_split = imgs[1].split('span')[1]
-                    if '（' in span_split:
-                        cup_split = span_split.split('（')[-1]
+            if 'カップ' in tr:
+                cup_split = tr.split('カップ')[0]
+                cup = cup_split[-1]
+            elif '<span>' in tr:
+                span_split = tr.split('span')[1]
+                if '（' in span_split:
+                    cup_split = span_split.split('（')[-1]
+                    cup = cup_split[0]
+            elif '<b>' in tr and 'font' not in tr:
+                b_split = tr.split('<b>')[1]
+                if '（' in b_split or '(' in b_split:
+                    cup_split = ['']
+                    if '（' in b_split:
+                        cup_split = b_split.split('（')[-1]
+                    if '(' in b_split:
+                        cup_split = b_split.split('(')[-1]
+
+                    if cup_split.__class__.__name__ == 'list':
                         cup = cup_split[0]
-                elif '<b>' in imgs[1] and 'font' not in imgs[1]:
-                    b_split = imgs[1].split('<b>')[1]
-                    if '（' in b_split or '(' in b_split:
-                        cup_split = ['']
-                        if '（' in b_split:
-                            cup_split = b_split.split('（')[-1]
-                        if '(' in b_split:
-                            cup_split = b_split.split('(')[-1]
+                    else:
+                        cup = cup_split
+            if len(cup) != 1:
+                cup = ''
 
-                        if cup_split.__class__.__name__ == 'list':
-                            cup = cup_split[0]
-                        else:
-                            cup = cup_split
-                if len(cup) != 1:
-                    cup = ''
-
+            # Extract name from <h4 class="chara-name">...</h4> using regex
             name = ''
-            if 'class="chara-name">' in tr:
-                name = tr.split('class="chara-name">')
-
-            if len(name) > 1:
-                if '</charalist>' in tr:
-                    name = tr.split('</charalist>')[0]
-                    name = name.split('<charalist>')[-1]
-                    name = self.split_name_on_parenthesis(name)
-                else:
-                    if '</h2>' in name[1]:
-                        name = name[1].split('</h2>')[0]
-                        name = self.split_name_on_parenthesis(name)
-                    if '<br>' in name:
-                        name = name.split('<br>')[-1]
-                    if '<br />' in name:
-                        name = name.split('<br />')[-1]
-                    if '<br/>' in name:
-                        name = name.split('<br/>')[-1]
-                    if len(name) > 1 and 'CV' in name:
-                        name = name.split('CV')[0]
-
-                if name.__class__.__name__ == 'list':
-                    name = name[0]
-
-                name = name.replace('　', ' ')
-                name = name.replace('\n', '')
-                name_text = name.strip(' ')
-                # Remove HTML tags and extract clean name
-                name = re.sub(r'<[^>]+>', '', name_text).strip(' ')
-                
-                # Robust cleaning of Getchu names:
-                # 1. Remove CV info: CV：... or (CV: ...)
-                name = re.split(r'CV[:：]', name, flags=re.IGNORECASE)[0].strip()
-                # 2. Remove readings in parentheses (both full-width and half-width)
-                # Matches patterns like "(reading)", "（reading）", "( reading )"
-                name = re.sub(r'[\(\uff08].*?[\)\uff09]', '', name).strip()
-                # 3. Handle trailing dashes or punctuation that might remain after splitting
+            name_match = re.search(r'class="chara-name">(.*?)</h4>', tr, re.DOTALL)
+            if name_match:
+                raw = name_match.group(1)
+                # Strip all HTML tags (e.g. <span class="bootstrap">)
+                name = re.sub(r'<[^>]+>', '', raw)
+                # Normalise whitespace and full-width spaces
+                name = name.replace('\u3000', ' ').replace('\n', '').strip()
+                # Remove CV info: "CV：..." or "CV:..."
+                name = re.split(r'CV\s*[:：]', name, flags=re.IGNORECASE)[0].strip()
+                # Remove reading in parentheses: （よみ） or (yomi)
+                name = re.sub(r'[(\uff08].*?[)\uff09]', '', name).strip()
+                # Remove trailing punctuation/dashes
                 name = name.rstrip('－-― \n\t')
 
-            # Clean the name further for matching
             name = name.replace('<strong>', '').replace('</strong>', '')
             
             # Try to match with VNDB character

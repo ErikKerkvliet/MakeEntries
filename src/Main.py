@@ -149,34 +149,36 @@ class Main:
     def combine_character_data(self, site_chars, vndb_chars):
         """Combine character data from different sources, prioritized by VNDB order"""
         chars = []
-        
+
         # Use VNDB list as the base to maintain order
         for i, v_char in enumerate(vndb_chars):
             v_entry = self.create_character_entry(v_char)
             v_entry['image_id'] = i + 1
             v_name_clean = v_entry['name'].replace(' ', '').replace('　', '')
-            
-            # Try to find match in site_chars
+
+            # Try to find matching Getchu character by kanji name
             for s_char in site_chars:
                 s_name_clean = s_char['name'].replace(' ', '').replace('　', '')
                 if v_name_clean == s_name_clean or s_char.get('image_id') == i + 1:
-                    # Found match, update with site data (images, cup, etc)
-                    s_entry = self.create_character_entry(s_char)
-                    # Don't overwrite image_id if it's already set to VNDB index
-                    s_entry.pop('image_id', None)
-                    v_entry.update(s_entry)
-                    v_entry['image_id'] = i + 1 
+                    # Match found — only take images from Getchu, keep all VNDB metadata
+                    if s_char.get('img1', ''):
+                        v_entry['img1'] = s_char['img1']
+                    if s_char.get('img2', ''):
+                        v_entry['img2'] = s_char['img2']
+                    if s_char.get('getchu_img1', ''):
+                        v_entry['getchu_img1'] = s_char['getchu_img1']
+                    if s_char.get('getchu_img2', ''):
+                        v_entry['getchu_img2'] = s_char['getchu_img2']
                     break
-            
+
             chars.append(v_entry)
 
-        # Add characters from site that didn't match VNDB
-        v_names = [c['name'].replace(' ', '').replace('　', '') for c in chars]
+        # Add site characters that didn't match any VNDB entry
+        v_names = {c['name'].replace(' ', '').replace('　', '') for c in chars}
         for s_char in site_chars:
             s_name_clean = s_char['name'].replace(' ', '').replace('　', '')
-            if s_name_clean not in v_names and s_char.get('image_id', 0) > len(vndb_chars):
+            if s_name_clean not in v_names:
                 new_entry = self.create_character_entry(s_char)
-                # Ensure it has a unique image_id
                 if not new_entry.get('image_id'):
                     new_entry['image_id'] = len(chars) + 1
                 chars.append(new_entry)

@@ -101,184 +101,123 @@ class Vndb:
         url = f'{self.pageUrl}/v{self.entry_id}/chars#chars'
         self.glv.driver.get(url)
 
-        theads = self.glv.get_elements('tag', 'thead')
         char_details = self.glv.get_elements('class', 'chardetails')
 
         data['chars'] = []
-        count = 0
 
-        if theads != 0:
-            for thead in theads:
+        if char_details == 0:
+            return data
 
-                data['chars'].append([])
+        for details in char_details:
 
-                data['chars'][count] = {}
+            char = {
+                'name': '',
+                'romanji': '',
+                'height': '',
+                'weight': '',
+                'measurements': '',
+                'cup': '',
+                'gender': '',
+                'age': '',
+                'img1': '',
+                'img2': '',
+            }
 
-                data['chars'][count]['name'] = ''
-                data['chars'][count]['romanji'] = ''
-                data['chars'][count]['height'] = ''
-                data['chars'][count]['weight'] = ''
-                data['chars'][count]['measurements'] = ''
-                data['chars'][count]['cup'] = ''
-                data['chars'][count]['gender'] = ''
-                data['chars'][count]['age'] = ''
-                data['chars'][count]['img1'] = ''
-                data['chars'][count]['img2'] = ''
+            # --- Name, romanji, gender from thead ---
+            thead = self.glv.get_element_old(details, 'tag', 'thead')
+            if thead != 0:
+                romanji_el = self.glv.get_element_old(thead, 'tag', 'a')
+                if romanji_el != 0:
+                    char['romanji'] = romanji_el.get_attribute('innerHTML')
 
-                romanji = self.glv.get_element_old(thead, 'tag', 'a')
+                name_el = self.glv.get_element_old(thead, 'tag', 'small')
+                if name_el != 0:
+                    name_str = name_el.get_attribute('innerHTML')
+                    name_text = name_str.replace('\u3000', ' ')
+                    char['name'] = re.sub(r'<[^>]+>', '', name_text).strip()
+                elif char['romanji'] != '':
+                    char['name'] = re.sub(r'<[^>]+>', '', char['romanji']).strip()
+                    char['romanji'] = ''
 
-                data['chars'][count]['romanji'] = romanji.get_attribute('innerHTML')
-
-                name = self.glv.get_element_old(thead, 'tag', 'small')
-                if name != 0:
-                    name_str = name.get_attribute('innerHTML')
-                    name_text = name_str.replace('　', ' ')
-                    data['chars'][count]['name'] = re.sub(r'<[^>]+>', '', name_text).strip()
-                elif data['chars'][count]['romanji'] != '':
-                    name_text = data['chars'][count]['romanji']
-                    data['chars'][count]['name'] = re.sub(r'<[^>]+>', '', name_text)
-                    data['chars'][count]['romanji'] = ''
-
-                gender = self.glv.get_element_old(thead, 'tag', 'abbr')
-
-                if gender != 0:
-                    gender_type = gender.get_attribute('title')
-
+                gender_el = self.glv.get_element_old(thead, 'tag', 'abbr')
+                if gender_el != 0:
+                    gender_type = gender_el.get_attribute('title')
                     if 'Female' in gender_type:
-                        gender = 'female'
+                        char['gender'] = 'female'
                     elif 'Male' in gender_type:
-                        gender = 'male'
+                        char['gender'] = 'male'
                     elif 'Both' in gender_type:
-                        gender = 'both'
+                        char['gender'] = 'both'
                     else:
-                        gender = 'unknown'
+                        char['gender'] = 'unknown'
                 else:
-                    gender = 'unknown'
+                    char['gender'] = 'unknown'
 
-                data['chars'][count]['gender'] = gender
+            # --- Image from charimg div ---
+            charimg_div = self.glv.get_element_old(details, 'class', 'charimg')
+            if charimg_div != 0:
+                img_el = self.glv.get_element_old(charimg_div, 'tag', 'img')
+                if img_el != 0:
+                    img_src = img_el.get_attribute('src')
+                    # Convert thumbnail URL (t.vndb.org/ch.t/...) to full URL (t.vndb.org/ch/...)
+                    img_src = img_src.replace('/ch.t/', '/ch/')
+                    char['img1'] = img_src
 
-                count += 1
-
+            # --- Measurements, age, cup from table rows ---
+            tds = self.glv.get_element_in_element(details, 'tag', 'td')
             measure_next = False
-            body_next = False
-            has_measurement = False
-            count = 0
-            if char_details != 0:
-                for details in char_details:
-                    tds = self.glv.get_element_in_element(details, 'tag', 'td')
-                    for td in tds:
-                        if measure_next:
-                            measure = td.get_attribute('innerHTML').lower()
+            age_next = False
+            for td in tds:
+                inner = td.get_attribute('innerHTML')
 
-                            measurements = measure.split(',')
-                            if 'height' in measure:
-                                for measurement in measurements:
-                                    if 'height:' in measurement:
-                                        splitted = measurement.split(':')
-                                        height = splitted[1].strip(' ')
+                if measure_next:
+                    measure_lower = inner.lower()
 
-                                        data['chars'][count]['height'] = height
+                    # Extract height (e.g. "Height: 165cm")
+                    h_match = re.search(r'height:\s*(\d+\s*cm)', measure_lower)
+                    if h_match:
+                        char['height'] = h_match.group(1).strip()
 
-                                        measurements.remove(measurement)
-                                        break
+                    # Extract weight (e.g. "Weight: 52kg")
+                    w_match = re.search(r'weight:\s*(\d+\s*kg)', measure_lower)
+                    if w_match:
+                        char['weight'] = w_match.group(1).strip()
 
-                            if 'weight' in measure:
-                                for measurement in measurements:
-                                    if 'weight:' in measurement:
-                                        splitted = measurement.split(':')
-                                        weight = splitted[1].strip(' ')
+                    # Extract BWH measurements (e.g. "Bust-Waist-Hips: 103-69-93cm")
+                    bwh_match = re.search(r'bust-waist-hips:\s*(\d+-\d+-\d+\s*cm)', measure_lower)
+                    if bwh_match:
+                        char['measurements'] = bwh_match.group(1).strip()
 
-                                        data['chars'][count]['weight'] = weight
+                    # Extract cup size from Measurements cell (e.g. "J cup")
+                    cup_match = re.search(r'\b([A-Za-z]{1,3})\s+cup\b', inner, re.IGNORECASE)
+                    if cup_match:
+                        char['cup'] = cup_match.group(1).upper()
 
-                                        measurements.remove(measurement)
-                                        break
+                    measure_next = False
 
-                            if 'bust' in measure:
-                                for measurement in measurements:
-                                    if 'bust' in measurement:
-                                        splitted = measurement.split(':')
-                                        sizes = splitted[1].strip('bust-waist-hips').strip(' ')
+                if age_next:
+                    age_text = re.sub(r'\D', '', inner[:10])
+                    if age_text:
+                        char['age'] = age_text
+                    age_next = False
 
-                                        data['chars'][count]['measurements'] = sizes
+                if inner == 'Measurements':
+                    measure_next = True
+                if inner == 'Age':
+                    age_next = True
 
-                                        measurements.remove(measurement)
-                                        break
-                            measure_next = False
-                            has_measurement = True
-                        if body_next:
-                            body = td.get_attribute('innerHTML')
-                            cup = ''
-                            if 'Cup' in body:
-                                body_split = body.split('Cup')[0]
-                                cup_split = body_split.split('Cup')
-                                cup = cup_split[0].split('>')[-1].strip(' ')
-                            if has_measurement:
-                                data['chars'][count - 1]['cup'] = cup
-                            else:
-                                data['chars'][count]['cup'] = cup
-                                has_measurement = False
+            data['chars'].append(char)
 
-                            body_next = False
-
-                        if td.get_attribute('innerHTML') == 'Measurements':
-                            measure_next = True
-                        if '>Body<' in td.get_attribute('innerHTML'):
-                            body_next = True
-                    count += 1
-
-            charimgs = self.glv.get_elements('class', 'charimg')
-            count = 0
-            for div in charimgs:
-                data['chars'][count]['img1'] = ''
-
-                img_img = self.glv.get_element_old(div, 'tag', 'img')
-                if img_img != 0:
-                    img = img_img.get_attribute('src')
-                    data['chars'][count]['img1'] = img
-
-                count += 1
-
-            divs = self.glv.get_elements('class', 'chardesc')
-            count = 0
-
-            if divs != 0 and len(charimgs) == len(divs):
-                for div in divs:
-                    text = div.get_attribute('innerHTML')
-
-                    data['chars'][count]['age'] = ''
-                    data['chars'][count]['cup'] = ''
-                    cup_split = []
-                    if 'Cup size: ' in text:
-                        cup_split = text.split('Cup size: ')
-                    elif 'Cup size:' in text:
-                        cup_split = text.split('Cup size:')
-                    elif 'Cup size' in text:
-                        cup_split = text.split('Cup size')
-                    elif 'Cup: ' in text:
-                        cup_split = text.split('Cup:')
-                    elif 'Cup ' in text:
-                        cup_split = text.split('Cup ')
-
-                    age_split = []
-                    if 'Age: ' in text:
-                        age_split = text.split('Age: ')
-                    elif 'Age:' in text:
-                        age_split = text.split('Age:')
-                    elif 'Age' in text:
-                        age_split = text.split('Age')
-
-                    if len(cup_split) > 1:
-                        cup = cup_split[1].split('<')[0].strip(' ')
-
-                        data['chars'][count]['cup'] = cup
-
-                    if len(age_split) > 1:
-                        age = age_split[1][0:5]
-                        age = re.sub(r"\D", "", age)
-
-                        data['chars'][count]['age'] = age
-
-                    count += 1
+            self.glv.log('-------------------------------------------------------------')
+            self.glv.log('Name: {}'.format(char['name']))
+            self.glv.log('Romanji: {}'.format(char['romanji']))
+            self.glv.log('Gender: {}'.format(char['gender']))
+            self.glv.log('Height: {}'.format(char['height']))
+            self.glv.log('Weight: {}'.format(char['weight']))
+            self.glv.log('Measurements: {}'.format(char['measurements']))
+            self.glv.log('Age: {}'.format(char['age']))
+            self.glv.log('Cup: {}'.format(char['cup']))
+            self.glv.log('Image: {}'.format(char['img1']))
 
         return data
 

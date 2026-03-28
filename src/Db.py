@@ -388,10 +388,12 @@ class DB:
                 try:
                     with open(char['img1'], 'r+b') as f:
                         with Image.open(f) as image:
+                            if image.mode in ("RGBA", "P"):
+                                image = image.convert("RGB")
                             char_face = image.resize((256, 300), Image.LANCZOS)
-                            char_face.save(save_location, image.format)
+                            char_face.save(save_location, format='JPEG')
                 except Exception as e:
-                    self.glv.log(f'Error moving character image: {e}', 'error')
+                    self.glv.log(f"Error moving character image 1 for {char.get('name')}: {e}", 'message')
                     pass
         
         try:
@@ -401,7 +403,7 @@ class DB:
                 if os.path.exists(char['img2']):
                     copyfile(char['img2'], save_location)
         except Exception as e:
-            self.glv.log(f'Error moving character image: {e}', 'error')
+            self.glv.log(f"Error moving character image 2 for {char.get('name')}: {e}", 'message')
             pass
             
     def move_samples(self, data):
