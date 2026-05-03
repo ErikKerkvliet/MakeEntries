@@ -696,6 +696,8 @@ class App(Tk):
             self.frame.entries['infopage'].insert(0, data['infopage'])
 
         if data['chars']:
+            valid_chars = [char for char in data['chars'] if char.get('img1', '') != '' and os.path.isfile(char['img1'])]
+            data['chars'] = valid_chars
             self.build_char_scroll_frame(self.frame, data['chars'])
 
         if data['samples']:

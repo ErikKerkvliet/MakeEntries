@@ -300,10 +300,12 @@ class DB:
         query += ' WHERE '
 
         if character["name"] != '':
-            query += f'c.name LIKE "{character["name"]}" '
+            name = character["name"].replace("'", "\\'")
+            query += f"c.name LIKE '{name}' "
 
         if character["romanji"] != '':
-            query += f'or c.romanji LIKE "{character["romanji"]}"'
+            romanji = character["romanji"].replace("'", "\\'")
+            query += f"or c.romanji LIKE '{romanji}'"
 
         if character["name"] == '' and character["romanji"] == '':
             return []
@@ -550,6 +552,6 @@ class DB:
 
             # If the query is a 'SELECT' and fails, return 0 to indicate failure
             elif 'SELECT' in query:
-                return 0  # Returns int (0) as a default for failed SELECT queries
+                return [] if fetch_all else 0  # Returns empty list for fetch_all, 0 otherwise
 
             exit()  # Exit the program if an unhandled exception occurs
