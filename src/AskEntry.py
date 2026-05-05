@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from tkinter import *
 import pyperclip
 
@@ -9,6 +10,11 @@ class AskEntry(Tk):
         self.glv = globalvar
 
         root = Tk.__init__(self, *args, **kwargs)
+
+        icon_path = Path(__file__).parent.parent / 'images' / 'MakeEntries.png'
+        if icon_path.exists():
+            icon = PhotoImage(file=str(icon_path))
+            self.wm_iconphoto(True, icon)
 
         self.root = root
         self.parent = parent

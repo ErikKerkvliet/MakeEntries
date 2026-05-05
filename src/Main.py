@@ -3,8 +3,7 @@ import sys
 import time
 import re
 import os
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+import undetected_chromedriver as uc
 
 # Import custom modules
 from Getchu import Getchu
@@ -49,15 +48,12 @@ class Main:
             "download.directory_upgrade": True,
             "safebrowsing.enabled": True
         }
-        options = Options()
+        options = uc.ChromeOptions()
         options.add_argument('--ignore-certificate-errors')
         options.add_argument("--no-sandbox")
         options.add_experimental_option("prefs", prefs)
 
-        import chromedriver_autoinstaller
-
-        chromedriver_autoinstaller.install()
-        self.glv.driver = webdriver.Chrome(options=options)
+        self.glv.driver = uc.Chrome(options=options)
 
     def get_entry_numbers(self):
         """Get entry numbers from user input"""
