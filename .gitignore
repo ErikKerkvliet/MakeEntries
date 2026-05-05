@@ -5,4 +5,5 @@
 images
 not_project
 *.idea/
+*.pytest_cache
 *.xml

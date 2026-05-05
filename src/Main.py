@@ -54,6 +54,7 @@ class Main:
         options.add_experimental_option("prefs", prefs)
 
         self.glv.driver = uc.Chrome(options=options)
+        self.glv.driver.set_window_size(1024, 768)
 
     def get_entry_numbers(self):
         """Get entry numbers from user input"""

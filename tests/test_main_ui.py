@@ -1,6 +1,6 @@
 """
 Standalone test for MainUI.py.
-Run with:  ../.venv/bin/python test_main_ui.py
+Run with:  .venv/bin/python tests/test_main_ui.py
 
 Opens the full application window (MainUI + ScrolledFrame) with fake data so
 you can verify layout, scrolling, and UI behaviour without a DB or browser.
@@ -12,6 +12,9 @@ your system. Any path that does not exist will simply be skipped.
 import os
 import sys
 import types
+
+# Add src/ to path so project modules are importable when run directly
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # ── 1. Stub heavy dependencies BEFORE importing project modules ────────────────
 

@@ -78,7 +78,7 @@ class Getchu:
 
         time.sleep(3)
 
-        js = '$("#buyee-bcSection").remove()'
+        js = 'var el = document.getElementById("buyee-bcSection"); if (el) el.remove();'
         web_driver.execute_script(js)
 
         url = '{}/soft.phtml?id={}'.format(self.page_url, self.getchu_id)
@@ -300,14 +300,14 @@ class Getchu:
         return name
 
     def download_images(self, driver, vndb_id):
-        script = "$('.highslide').attr('onclick', 'window.open(this)');$('.highslide').attr('onkeypress', '')"
+        script = "document.querySelectorAll('.highslide').forEach(el => { el.setAttribute('onclick', 'window.open(this)'); el.removeAttribute('onkeypress'); });"
         driver.execute_script(script)
         if 'anidb' in self.glv.db_label:
-            script = "$('.highslide').first().click()"
+            script = "var el = document.querySelector('.highslide'); if (el) el.click();"
             driver.execute_script(script)
             high_slide_indices = [0]
         else:
-            script = "$('.highslide').click()"
+            script = "document.querySelectorAll('.highslide').forEach(el => el.click());"
             driver.execute_script(script)
             # Find all elements with class highslide
             high_slide_elements = self.glv.get_elements('class', 'highslide')
