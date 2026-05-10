@@ -300,7 +300,7 @@ class Getchu:
         return name
 
     def download_images(self, driver, vndb_id):
-        script = "document.querySelectorAll('.highslide').forEach(el => { el.setAttribute('onclick', 'window.open(this)'); el.removeAttribute('onkeypress'); });"
+        script = "document.querySelectorAll('.highslide').forEach(el => { el.setAttribute('onclick', 'window.open(this); return false;'); el.removeAttribute('onkeypress'); });"
         driver.execute_script(script)
         if 'anidb' in self.glv.db_label:
             script = "var el = document.querySelector('.highslide'); if (el) el.click();"
