@@ -281,6 +281,13 @@ class DB:
             self.move_char(char, char_id)
             print('Character has been moved')
 
+            if self.glv.sudo_pass:
+                import subprocess
+                subprocess.run(
+                    f'echo {self.glv.sudo_pass} | sudo -S chmod -R 777 {self.root_chars}/{char_id}',
+                    shell=True, check=False
+                )
+
     def insert_entry_character(self, entry_id, char_id):
         query = "INSERT INTO {} (entry_id, character_id) VALUES ({}, {})".format(
             self.glv.entry_characters_table,

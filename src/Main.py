@@ -47,7 +47,8 @@ class Main:
             "download.default_directory": f'{self.glv.app_folder}/{self.vndb_id}/temp',
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
-            "safebrowsing.enabled": True
+            "safebrowsing.enabled": True,
+            "profile.default_content_setting_values.popups": 1,
         }
         options = uc.ChromeOptions()
         options.add_argument('--ignore-certificate-errors')
