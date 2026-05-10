@@ -610,6 +610,13 @@ class App(Tk):
             archive_path = archive_manager.create_rar_archive(self.glv.file)
             self.glv.log(f'Created compressed RAR archive for video file: {archive_path}')
 
+        if self.glv.sudo_pass:
+            import subprocess
+            subprocess.run(
+                f'echo {self.glv.sudo_pass} | sudo -S chmod -R 777 /var/www/Hcapital/entry_images/entries/{entry_id}',
+                shell=True, check=False
+            )
+
         self.glv.quit()
 
     @staticmethod

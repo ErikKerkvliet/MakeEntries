@@ -7,8 +7,11 @@ import time
 from random import uniform
 import urllib.request
 import subprocess
+from dotenv import load_dotenv
 
 from Db import DB
+
+load_dotenv()
 
 from PIL import Image
 
@@ -17,9 +20,10 @@ class Globalvar:
 
     def __init__(self):
         self.errorMessage = 'Start\n'
+        self.sudo_pass = os.getenv('SUDO_PASS', '')
         self.db = DB(self)
         self.connection = self.db.connection
-        self.home = '/home/erik'  # os.path.expanduser('~')
+        self.home = os.path.expanduser('~')
         self.app_folder = '{}/MakeEntries'.format(self.home)
         self.img_folder = '{}/entry_images'.format(self.app_folder)
         self.downloadFolder = ''

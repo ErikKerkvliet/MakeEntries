@@ -38,6 +38,7 @@ class Main:
 
     def setup_logging(self):
         """Set up logging configuration"""
+        os.makedirs(self.glv.app_folder, exist_ok=True)
         logging.basicConfig(filename=f'{self.glv.app_folder}/log.txt', level=logging.ERROR)
 
     def initialize_webdriver(self):
