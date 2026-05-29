@@ -1,4 +1,5 @@
 import logging
+import subprocess
 import sys
 import time
 import re
@@ -16,6 +17,17 @@ from MainUI import MainUI
 
 # from ErrorHandler import ErrorHandler
 from CharacterHandler import CharacterHandler
+
+
+def _chrome_major_version() -> int:
+    """Read the major version of the system Chrome binary."""
+    for binary in ("google-chrome", "google-chrome-stable", "chromium-browser", "chromium"):
+        try:
+            out = subprocess.check_output([binary, "--version"], stderr=subprocess.DEVNULL).decode()
+            return int(out.strip().split()[-1].split(".")[0])
+        except (FileNotFoundError, ValueError, IndexError):
+            continue
+    return 0
 
 
 class Main:
@@ -55,7 +67,8 @@ class Main:
         options.add_argument("--no-sandbox")
         options.add_experimental_option("prefs", prefs)
 
-        self.glv.driver = uc.Chrome(options=options)
+        version = _chrome_major_version()
+        self.glv.driver = uc.Chrome(options=options, version_main=version or None)
         self.glv.driver.set_window_size(1024, 768)
 
     def get_entry_numbers(self):
