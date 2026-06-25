@@ -4,6 +4,7 @@ import sys
 import time
 import re
 import os
+# pyrefly: ignore [missing-import]
 import undetected_chromedriver as uc
 
 # Import custom modules
@@ -279,6 +280,21 @@ class Main:
             
         return entry
 
+    def park_browser(self):
+        """Navigate the (now idle) browser to a neutral page.
+
+        Called once the browser is no longer needed for scraping. The only work
+        left at this point is downloading the images (via requests/urllib, not
+        the browser), so we park the session on google.nl instead of leaving it
+        on the scraped page.
+        """
+        if self.glv.driver is None:
+            return
+        try:
+            self.glv.driver.get('https://www.google.nl')
+        except Exception as exc:
+            self.glv.log(f'Failed to park browser on google.nl: {exc}')
+
     def download_and_organize_images(self, data):
         """Download and organize images"""
         self.glv.log('Downloading images')
@@ -378,7 +394,9 @@ class Main:
             # Process data from AniDB/Getchu as normal
             data = self.process_entry_data()
 
-            self.glv.driver.quit()
+            # The browser is done scraping; park it on google.nl while the
+            # montage/image downloads finish, then close it below.
+            self.park_browser()
 
             if len(sys.argv) == 3:
                 # Now process the video and add it to samples
@@ -398,6 +416,9 @@ class Main:
 
             self.download_and_organize_images(data)
             self.update_sample_list(data)
+
+            # Downloads are done; the browser can now be closed.
+            self.glv.driver.quit()
 
             self._close_ask_entry()
             ui = MainUI(self.glv)
@@ -420,6 +441,10 @@ class Main:
                 self.initialize_webdriver()
 
             data = self.process_entry_data()
+
+            # The browser is done scraping; only image downloading remains.
+            # Park it on google.nl while the downloads run.
+            self.park_browser()
 
             self.download_and_organize_images(data)
 

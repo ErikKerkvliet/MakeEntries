@@ -1,7 +1,10 @@
 import os
 import shutil
 import sys
+
+# pyrefly: ignore [missing-import]
 from selenium.common.exceptions import NoSuchElementException
+# pyrefly: ignore [missing-import]
 from selenium.webdriver.common.by import By
 import time
 from random import uniform
