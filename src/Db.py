@@ -488,7 +488,7 @@ class DB:
         os.system('sed -i "$ d" {0}'.format(file_path))
         
         txt = "<url>"
-        txt += "<loc>http://www.hcapital.tk/?show=entry&amp;id={}</loc>".format(entry_id)
+        txt += "<loc>http://www.hcapital.nl/?show=entry&amp;id={}</loc>".format(entry_id)
         txt += "<changefreq>daily</changefreq>"
         txt += "<priority>0.2</priority>"
         txt += "</url>\n</urlset>"

@@ -111,12 +111,17 @@ def test_combine_merges_images_by_name(main):
     assert result[0]["img1"] == "/site/alice.jpg"
 
 
-def test_combine_merges_images_by_index(main):
-    """When names differ but image_id matches, images are still merged."""
+def test_combine_does_not_merge_by_position_when_names_differ(main):
+    """VNDB is leading: a Getchu char must NOT be merged onto a VNDB char just
+    because their list position (image_id) lines up. Pairing by position grabbed
+    the wrong image whenever the two sites ordered characters differently."""
     vndb = [_char("アリス")]
     site = [_char("Alice", img1="/site/alice.jpg", image_id=1)]
     result = main.combine_character_data(site, vndb)
-    assert result[0]["img1"] == "/site/alice.jpg"
+    # The VNDB character keeps its own (empty) image, no Getchu image stolen.
+    assert result[0]["img1"] == ""
+    # The unmatched Getchu character is appended as a separate entry instead.
+    assert [r["name"] for r in result] == ["アリス", "Alice"]
 
 
 def test_combine_appends_unmatched_site_chars(main):
@@ -183,3 +188,56 @@ def test_organize_images_char(main, tmp_path, monkeypatch):
 
     main.organize_images(root, root_temp, ["char_2_img1.jpg"])
     assert any("__img.jpg" in k and "/2/" in k for k in moved)
+
+
+def test_organize_images_char_vndb(main, tmp_path, monkeypatch):
+    root = str(tmp_path / "entry")
+    root_temp = str(tmp_path / "temp")
+
+    moved = {}
+    monkeypatch.setattr(main, "move_file", lambda old, new: moved.__setitem__(new, old))
+    monkeypatch.setattr(os.path, "isfile", lambda p: str(p).endswith(".jpg"))
+
+    main.organize_images(root, root_temp, ["char_2_vndb.jpg"])
+    assert any("vndb.jpg" in k and "/2/" in k for k in moved)
+
+
+# ── vndb-getchu image wiring ──────────────────────────────────────────────────
+
+def test_combine_preserves_vndb_img1(main):
+    vndb = [_char("アリス", img1="https://vndb/a.jpg")]
+    site = [_char("アリス", img1="/g.jpg", image_id=1)]
+    result = main.combine_character_data(site, vndb)
+    # img1 becomes the Getchu image; the VNDB portrait is kept separately.
+    assert result[0]["img1"] == "/g.jpg"
+    assert result[0]["vndb_img1"] == "https://vndb/a.jpg"
+
+
+def test_combine_data_uses_getchu_urls_for_vndb_getchu(main):
+    data_vndb = {"title": "T", "romanji": "", "developer1": "",
+                 "developer2": "", "webpage": "", "cover": ""}
+    chars_vndb = {"chars": [_char("アリス", img1="https://vndb/a.jpg")]}
+    site_char = _char("アリス", image_id=1, img1="/local/getchu.jpg",
+                      getchu_img1="http://getchu/a1.jpg",
+                      getchu_img2="http://getchu/a2.jpg")
+    data_site = {"infopage": "", "cover": "", "released": "", "samples": [],
+                 "chars": [site_char]}
+
+    data = main.combine_data(data_vndb, chars_vndb, data_site)
+
+    assert data["show_vndb"] is True
+    c = data["chars"][0]
+    assert c["vndb_img1"] == "https://vndb/a.jpg"   # VNDB portrait preserved
+    assert c["img1"] == "http://getchu/a1.jpg"       # Getchu URL used for download
+    assert c["img2"] == "http://getchu/a2.jpg"
+
+
+def test_combine_data_no_show_vndb_for_dlsite(main):
+    main.site_label = "dlsite"
+    data_vndb = {"title": "T", "romanji": "", "developer1": "",
+                 "developer2": "", "webpage": "", "cover": ""}
+    chars_vndb = {"chars": [_char("アリス", img1="https://vndb/a.jpg")]}
+    data_site = {"infopage": "", "cover": "", "released": "", "samples": [], "chars": []}
+
+    data = main.combine_data(data_vndb, chars_vndb, data_site)
+    assert "show_vndb" not in data

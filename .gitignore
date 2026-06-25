@@ -7,3 +7,5 @@ not_project
 *.idea/
 *.pytest_cache
 *.xml
+site_data/
+*.jpg

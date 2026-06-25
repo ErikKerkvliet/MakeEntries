@@ -43,10 +43,45 @@ class Main:
         self.glv.set_test(False)
         self.glv.set_tables()
 
-    @staticmethod
-    def exit():
+    def exit(self):
         print('close')
+        # Closing the entry-number window quits the browser too (in multiple mode
+        # it is otherwise kept open on purpose).
+        try:
+            if self.glv.driver is not None:
+                self.glv.driver.quit()
+        except Exception:
+            pass
         sys.exit()
+
+    def _close_ask_entry(self):
+        """Destroy the entry-number window so the review UI is the only Tk root."""
+        if self.ask_entry is not None:
+            try:
+                self.ask_entry.destroy()
+            except Exception:
+                pass
+            self.ask_entry = None
+
+    def reset_run_state(self):
+        """Reset every per-run variable to its default so each multiple-mode run
+        starts from a clean slate. The browser session (glv.driver) and the
+        multiple flag are deliberately preserved so the same session is reused."""
+        self.vndb_id = None
+        self.getchu_id = None
+        self.site_id = None
+        self.db_label = None
+        self.site_label = None
+
+        self.glv.errorMessage = 'Start\n'
+        self.glv.downloadFolder = ''
+        self.glv.entry_id = None
+        self.glv.vndb_id = None
+        self.glv.info_site = None
+        self.glv.db_site = None
+        self.glv.db_label = None
+        self.glv.no_resize = False
+        self.glv.video_file_path = None
 
     def setup_logging(self):
         """Set up logging configuration"""
@@ -75,13 +110,13 @@ class Main:
         """Get entry numbers from user input"""
         screen_resolution = self.glv.get_screen_resolution()
         x_loc = screen_resolution[0] - 820
-        y_loc = screen_resolution[1] - 190
+        y_loc = screen_resolution[1] - 220
 
         self.glv.log('Getting entry nrs.')
 
         self.ask_entry = AskEntry(self, self.glv)
         self.ask_entry.title('Entry nrs.')
-        self.ask_entry.geometry(f"170x109+{x_loc}+{y_loc}")
+        self.ask_entry.geometry(f"170x140+{x_loc}+{y_loc}")
         self.ask_entry.wm_attributes("-topmost", 1)
         self.ask_entry.protocol("WM_DELETE_WINDOW", lambda: self.exit())
 
@@ -109,6 +144,11 @@ class Main:
         else:
             site = Getchu(self.glv)
             self.site_id = re.sub(r"\D", "", self.getchu_id)
+            # For the vndb-getchu combo we grab the character images by URL
+            # (download) instead of Selenium screenshots, so tell Getchu to skip
+            # the character screenshots. anidb-getchu keeps the screenshots.
+            if self.is_vndb_getchu():
+                site.skip_char_images = True
 
         # Clean vndb_id to only contain numbers
         self.vndb_id = re.sub(r"\D", "", self.vndb_id)
@@ -154,9 +194,23 @@ class Main:
 
         chars = self.combine_character_data(data_site['chars'], chars_vndb['chars'])
 
+        # vndb-getchu: use the Getchu image URLs as the character images (they get
+        # downloaded directly), and keep the VNDB portrait for side-by-side display.
+        if self.is_vndb_getchu():
+            for char in chars:
+                if char.get('getchu_img1'):
+                    char['img1'] = char['getchu_img1']
+                if char.get('getchu_img2'):
+                    char['img2'] = char['getchu_img2']
+            data['show_vndb'] = True
+
         data['chars'] = self.character_handler.characters(chars)
 
         return data
+
+    def is_vndb_getchu(self):
+        """The VNDB + Getchu combination (not anidb-getchu, not vndb-dlsite)."""
+        return self.db_label == 'vndb' and self.site_label == 'getchu'
 
     def combine_character_data(self, site_chars, vndb_chars):
         """Combine character data from different sources, prioritized by VNDB order"""
@@ -166,12 +220,18 @@ class Main:
         for i, v_char in enumerate(vndb_chars):
             v_entry = self.create_character_entry(v_char)
             v_entry['image_id'] = i + 1
+            # Preserve the VNDB portrait URL before img1 is (possibly) overwritten
+            # with the Getchu image, so it can be shown alongside for comparison.
+            v_entry['vndb_img1'] = v_entry.get('img1', '')
             v_name_clean = v_entry['name'].replace(' ', '').replace('　', '')
 
-            # Try to find matching Getchu character by kanji name
+            # Match a Getchu character to this VNDB character by (cleaned) kanji
+            # name only. VNDB is leading, so we never pair by list position:
+            # the two sites order their characters differently, and matching by
+            # position grabbed the wrong Getchu image for the name.
             for s_char in site_chars:
                 s_name_clean = s_char['name'].replace(' ', '').replace('　', '')
-                if v_name_clean == s_name_clean or s_char.get('image_id') == i + 1:
+                if v_name_clean and v_name_clean == s_name_clean:
                     # Match found — only take images from Getchu, keep all VNDB metadata
                     if s_char.get('img1', ''):
                         v_entry['img1'] = s_char['img1']
@@ -253,6 +313,14 @@ class Main:
                     nr = match.group(1)
                     move_to = f'{root}/samples/sample{nr}.jpg'
             
+            # VNDB portrait for side-by-side display (matches char_#_vndb.jpg)
+            elif 'char_' in f and '_vndb' in f:
+                match = re.search(r'char_(\d+)_vndb', f)
+                if match:
+                    nr = int(match.group(1))
+                    self.glv.make_char_dir(self.vndb_id, nr)
+                    move_to = f'{root}/chars/{nr}/vndb.jpg'
+
             # Characters (matches char_#_img#.jpg)
             elif 'char_' in f:
                 match = re.search(r'char_(\d+)_img(\d)', f)
@@ -331,24 +399,48 @@ class Main:
             self.download_and_organize_images(data)
             self.update_sample_list(data)
 
+            self._close_ask_entry()
             ui = MainUI(self.glv)
             ui.fill_data(data, self.vndb_id)
             ui.do_loop()
             return
 
-        self.get_entry_numbers()
-        self.initialize_webdriver()
+        # Normal flow. In "multiple" mode this loops: the browser session is kept
+        # open and a fresh entry-number window is shown after each entry is saved.
+        while True:
+            # Start each run from defaults so nothing leaks from the previous one
+            # (the browser session and multiple flag are preserved).
+            self.reset_run_state()
 
-        data = self.process_entry_data()
+            self.get_entry_numbers()
 
-        self.download_and_organize_images(data)
-        self.glv.driver.quit()
+            # Reuse the existing browser session in multiple mode; otherwise the
+            # driver is None on every run and a new browser is started.
+            if self.glv.driver is None:
+                self.initialize_webdriver()
 
-        self.update_sample_list(data)
+            data = self.process_entry_data()
 
-        ui = MainUI(self.glv)
-        ui.fill_data(data, self.vndb_id)
-        ui.do_loop()
+            self.download_and_organize_images(data)
+
+            # Only close the browser for single runs; multiple mode keeps it open.
+            if not self.glv.multiple:
+                self.glv.driver.quit()
+
+            # Close the (now disabled) entry window so the review UI is the only
+            # Tk root while the user submits.
+            self._close_ask_entry()
+
+            self.update_sample_list(data)
+
+            ui = MainUI(self.glv)
+            ui.fill_data(data, self.vndb_id)
+            ui.do_loop()
+
+            # In single-run mode submit() already quit the app; this guards the
+            # case where the review window was closed without quitting.
+            if not self.glv.multiple:
+                break
 
 
 if __name__ == "__main__":

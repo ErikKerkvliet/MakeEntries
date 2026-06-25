@@ -97,9 +97,34 @@ class Vndb:
         self.glv.log('')
         self.glv.log('Getting character data')
 
-        data = {}
         url = f'{self.pageUrl}/v{self.entry_id}/chars#chars'
         self.glv.driver.get(url)
+        data = self.parse_char_data()
+
+        # VNDB sometimes serves an anti-bot / "enable cookies" interstitial when a
+        # deep link is opened as the first request from a fresh session; that page
+        # has no character markup. If we got nothing, warm up the session by
+        # visiting the main entry page first, then retry the chars page once.
+        if not data['chars']:
+            self.glv.log('No characters found — warming up session and retrying')
+            self.glv.driver.get(f'{self.pageUrl}/v{self.entry_id}')
+            self.glv.sleep(2)
+            self.glv.driver.get(url)
+            self.glv.sleep(1)
+            data = self.parse_char_data()
+
+        if not data['chars']:
+            self.glv.log(f'WARNING: VNDB returned 0 characters for v{self.entry_id}. '
+                         f'The entry may genuinely have no characters, or VNDB blocked '
+                         f'the request. Check {self.pageUrl}/v{self.entry_id}/chars')
+
+        return data
+
+    def parse_char_data(self):
+        """Parse character data from whatever page is currently loaded in the
+        driver. Split out from get_char_data so the same parsing can run on a
+        saved chars-page HTML (loaded via file://) without hitting the network."""
+        data = {}
 
         char_details = self.glv.get_elements('class', 'chardetails')
 

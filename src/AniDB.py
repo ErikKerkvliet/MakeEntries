@@ -20,6 +20,9 @@ class AniDB:
     def login(self):
         print('Log into AniDB')
 
+        if self.glv.driver.current_url == self.pageUrl:
+            return
+
         self.glv.driver.get(self.pageUrl)
 
         wait = WebDriverWait(self.glv.driver, 15)

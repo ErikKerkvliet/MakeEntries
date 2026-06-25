@@ -44,6 +44,10 @@ class Globalvar:
         self.entry_characters_table = None
         self.entry_developers_table = None
         self.driver = None
+        # "Multiple" mode: keep the browser session open across runs and re-show
+        # the entry-number window after each entry is saved. Set from the
+        # "Multiple" checkbox in AskEntry every time Start is pressed.
+        self.multiple = False
 
     def set_test(self, state):
         self.test = state
@@ -234,6 +238,12 @@ class Globalvar:
                 self.download_url(char['img2'], filename)
                 char['img2'] = '{}/chars/{}/charb.jpg'.format(root, j_up)
 
+            # Download the VNDB portrait (vndb-getchu combo) for side-by-side display
+            if char.get('vndb_img1') and char['vndb_img1'].startswith('http'):
+                filename = 'char_{}_vndb.jpg'.format(j_up)
+                self.download_url(char['vndb_img1'], filename)
+                char['vndb_img1'] = '{}/chars/{}/vndb.jpg'.format(root, j_up)
+
         new_samples = []
         for i, sample in enumerate(samples):
             if sample.startswith('http'):
@@ -267,7 +277,14 @@ class Globalvar:
                 urllib.request.urlretrieve(url, file)
             else:
                 import requests
-                response = requests.get(url, stream=True, timeout=10)
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+                                  '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                }
+                # Getchu blocks hot-linking of its images without a getchu referer.
+                if 'getchu.com' in url:
+                    headers['Referer'] = 'http://www.getchu.com/'
+                response = requests.get(url, headers=headers, stream=True, timeout=15)
                 response.raise_for_status()
                 with open(file, 'wb') as f:
                     for chunk in response.iter_content(1024):

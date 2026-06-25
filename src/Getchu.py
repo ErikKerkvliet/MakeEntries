@@ -22,6 +22,9 @@ class Getchu:
         self.nrs = {}
         self.data = None
         self.getchu_to_vndb_index = {}  # Maps Getchu char index to VNDB char index
+        # When True, skip Selenium screenshots of character images; the caller
+        # downloads the character image URLs directly instead (vndb-getchu combo).
+        self.skip_char_images = False
 
     @staticmethod
     def find_str(full, sub):
@@ -129,22 +132,22 @@ class Getchu:
     def get_character_data(self, char_trs, data, chars_vndb=None):
         self.glv.log('Getting getchu character data')
         
-        # Build VNDB character name lookup (kanji names) with indices
+        # Build VNDB character name lookup (kanji names) with indices.
+        # VNDB is leading: map every character by its TRUE position so the
+        # image_id we assign matches the numbering Main.combine_character_data
+        # uses (which counts all VNDB characters).
         vndb_name_map = {}  # Maps clean name -> (vndb_char, vndb_index)
         if chars_vndb and 'chars' in chars_vndb:
             for vndb_index, vndb_char in enumerate(chars_vndb['chars']):
-                index = vndb_index
-                if vndb_char.get('img', '') == '':
-                    index -= 1
-                    continue
-
-                # Store both the original name and a cleaned version for matching
+                # Store a cleaned version of the kanji name for matching.
+                # NB: the VNDB character dict uses the key 'img1' (not 'img');
+                # the old 'img' check silently skipped every character and left
+                # this map empty, so name matching never worked.
                 kanji_name = vndb_char.get('name', '')
                 if kanji_name:
-                    # Clean version: remove all spaces and special characters for matching
                     clean_name = kanji_name.replace(' ', '').replace('　', '')
-                    vndb_name_map[clean_name] = (vndb_char, index)
-                    self.glv.log(f'VNDB character {index + 1} for matching: {kanji_name} (clean: {clean_name})')
+                    vndb_name_map[clean_name] = (vndb_char, vndb_index)
+                    self.glv.log(f'VNDB character {vndb_index + 1} for matching: {kanji_name} (clean: {clean_name})')
         
         getchu_char_index = 0
         for i, tr in enumerate(char_trs):
@@ -224,7 +227,15 @@ class Getchu:
             name_match = re.search(r'class="chara-name">(.*?)</h4>', tr, re.DOTALL)
             if name_match:
                 raw = name_match.group(1)
-                # Strip all HTML tags (e.g. <span class="bootstrap">)
+                # The cell often holds a role/caption line, a <br>, then the real
+                # name + reading + CV, e.g.:
+                #   母性あふれる看板娘<br>千々石 野乃（ちじわ のの） CV：高野零
+                # The name is the segment AFTER the last <br>; the part before it
+                # is a tagline that must not become part of the name (it breaks the
+                # VNDB name match).
+                if re.search(r'<br\s*/?>', raw, re.IGNORECASE):
+                    raw = re.split(r'<br\s*/?>', raw, flags=re.IGNORECASE)[-1]
+                # Strip remaining HTML tags (e.g. <span class="bootstrap">)
                 name = re.sub(r'<[^>]+>', '', raw)
                 # Normalise whitespace and full-width spaces
                 name = name.replace('\u3000', ' ').replace('\n', '').strip()
@@ -318,23 +329,26 @@ class Getchu:
 
         self.glv.sleep(2)
 
-        # Handle character screenshots from the main page
-        images = self.glv.get_elements('tag', 'img')
-        for image in images:
-            src = image.get_attribute('src')
-            if not src:
-                continue
-            image_name = src.split('/')[-1]
+        # Handle character screenshots from the main page.
+        # Skipped for the vndb-getchu combo, where the caller downloads the
+        # character image URLs directly instead (more reliable).
+        if not self.skip_char_images:
+            images = self.glv.get_elements('tag', 'img')
+            for image in images:
+                src = image.get_attribute('src')
+                if not src:
+                    continue
+                image_name = src.split('/')[-1]
 
-            if '_' not in image_name and 'charab' not in image_name and 'chara' in image_name:
-                nr_match = re.search(r'chara(\d+)', image_name)
-                if nr_match:
-                    nr = nr_match.group(1)
-                    vndb_char_nr = self.nrs.get(nr)
-                    if vndb_char_nr:
-                        img_name = 'char_{}_img1'.format(vndb_char_nr)
-                        self.glv.log(f'Saving character screenshot: Getchu ID {nr} -> VNDB nr {vndb_char_nr}')
-                        self.save_image_screenshot(driver, root_temp, image, img_name)
+                if '_' not in image_name and 'charab' not in image_name and 'chara' in image_name:
+                    nr_match = re.search(r'chara(\d+)', image_name)
+                    if nr_match:
+                        nr = nr_match.group(1)
+                        vndb_char_nr = self.nrs.get(nr)
+                        if vndb_char_nr:
+                            img_name = 'char_{}_img1'.format(vndb_char_nr)
+                            self.glv.log(f'Saving character screenshot: Getchu ID {nr} -> VNDB nr {vndb_char_nr}')
+                            self.save_image_screenshot(driver, root_temp, image, img_name)
 
         # Handle highslide images (samples and covers)
         window_handles = driver.window_handles
@@ -354,7 +368,7 @@ class Getchu:
             elif 'sample' in url or 'table' in url:
                 name = 'sample_{}'.format(sample_nr)
                 sample_nr += 1
-            elif 'chara' in url:
+            elif 'chara' in url and not self.skip_char_images:
                 nr_match = re.search(r'chara[b]?(\d+)', url)
                 if nr_match:
                     nr = nr_match.group(1)

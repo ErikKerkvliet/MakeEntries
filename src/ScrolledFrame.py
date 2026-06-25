@@ -18,6 +18,9 @@ class ScrolledFrame(Frame):
 
         self.top = None
         self.vndb_id = None
+        # When True (vndb-getchu combo) character cards show the VNDB portrait
+        # next to the Getchu image(s), one card per row.
+        self.show_vndb = False
 
         self.getchuCoverVar = None
         self.vndbCoverVar = None
@@ -263,7 +266,132 @@ class ScrolledFrame(Frame):
         button.pack()
         button.place(x=0, y=0, anchor=NW)
 
+    def _build_char_frame_combo(self, parent, char):
+        """vndb-getchu card: VNDB portrait + full character data + Getchu
+        image(s), one wide card per row. Mirrors build_char_frame's parallel-list
+        bookkeeping so the submit logic keeps working unchanged."""
+        main_path = char.get('img1', '')          # Getchu face — the submitted image
+        vndb_path = char.get('vndb_img1', '')      # VNDB portrait — for comparison
+        has_main = bool(main_path) and os.path.isfile(main_path)
+        has_vndb = bool(vndb_path) and os.path.isfile(vndb_path)
+        if not has_main and not has_vndb:
+            return 0
+
+        # If Getchu has no usable image, fall back to the VNDB portrait as the
+        # submitted image so the character still has one.
+        if not has_main and has_vndb:
+            main_path, has_main = vndb_path, True
+            char['img1'] = vndb_path
+
+        card = Frame(master=parent.interior, bd=1, relief=SUNKEN, bg='#ffffff')
+        card.place(width=944, height=200)
+
+        def image_button(path, x, y, w, h):
+            image = Image.open(path)
+            photo = ImageTk.PhotoImage(image.resize([w, h]))
+            btn = Button(master=card, image=photo, command=lambda im=image: self.build_img_dialog(im))
+            btn.image = photo
+            btn.place(x=x, y=y, width=w, height=h)
+            return btn
+
+        def placeholder(text, x, y, w, h):
+            Label(card, text=text, bg='#ffffff', fg='#b71c1c',
+                  relief='groove').place(x=x, y=y, width=w, height=h)
+
+        # captions
+        Label(card, text='VNDB', bg='#ffffff', anchor=W, fg='#555').place(x=4, y=2, width=150, height=14)
+        Label(card, text='Getchu (submitted)', bg='#ffffff', anchor=W, fg='#555').place(x=160, y=2, width=160, height=14)
+
+        # VNDB portrait (display only) and Getchu / main image (submitted)
+        if has_vndb:
+            image_button(vndb_path, 2, 18, 150, 176)
+        else:
+            placeholder('(no VNDB image)', 2, 18, 150, 176)
+
+        if has_main:
+            image_button(main_path, 158, 18, 150, 176)
+        else:
+            placeholder('(no Getchu image)', 158, 18, 150, 176)
+
+        # include-character checkbox (over the submitted image)
+        self.charCheckVar.append(IntVar())
+        self.charCheck.append(Checkbutton(card, variable=self.charCheckVar[-1], bg='#ffffff'))
+        self.charCheck[-1].select()
+        self.charCheck[-1].place(x=160, y=20)
+
+        # data labels
+        for text, y in (('Name', 20), ('Romanji', 48), ('Gender', 76),
+                        ('Measurements', 104), ('Height', 132), ('Weight', 160)):
+            Label(card, text=f'{text}: ', bg='#ffffff', anchor=NW).place(x=320, y=y, width=110, height=20)
+        Label(card, text='Cup: ', bg='#ffffff', anchor=NW).place(x=540, y=76, width=40, height=20)
+        Label(card, text='Age: ', bg='#ffffff', anchor=NW).place(x=540, y=132, width=40, height=20)
+
+        # data entries (same lists/order as build_char_frame)
+        self.charNameEntry.append(Entry(card, font=("Calibri", 9)))
+        self.charromanji_entry.append(Entry(card, font=("Calibri", 9)))
+        self.charGenderEntry.append(Entry(card, font=("Calibri", 9)))
+        self.charCupEntry.append(Entry(card, font=("Calibri", 9)))
+        self.charMeasurementEntry.append(Entry(card, font=("Calibri", 9)))
+        self.charHeightEntry.append(Entry(card, font=("Calibri", 9)))
+        self.charAgeEntry.append(Entry(card, font=("Calibri", 9)))
+        self.charWeightEntry.append(Entry(card, font=("Calibri", 9)))
+
+        for e in (self.charNameEntry[-1], self.charromanji_entry[-1], self.charGenderEntry[-1],
+                  self.charCupEntry[-1], self.charMeasurementEntry[-1], self.charHeightEntry[-1],
+                  self.charAgeEntry[-1], self.charWeightEntry[-1]):
+            self.add_binds(e)
+
+        self.charNameEntry[-1].place(x=435, y=20, width=300, height=22)
+        self.charromanji_entry[-1].place(x=435, y=48, width=300, height=22)
+        self.charGenderEntry[-1].place(x=435, y=76, width=80, height=22)
+        self.charCupEntry[-1].place(x=585, y=76, width=50, height=22)
+        self.charMeasurementEntry[-1].place(x=435, y=104, width=300, height=22)
+        self.charHeightEntry[-1].place(x=435, y=132, width=70, height=22)
+        self.charAgeEntry[-1].place(x=585, y=132, width=60, height=22)
+        self.charWeightEntry[-1].place(x=435, y=160, width=70, height=22)
+
+        for entry, key in ((self.charNameEntry[-1], 'name'), (self.charromanji_entry[-1], 'romanji'),
+                           (self.charGenderEntry[-1], 'gender'), (self.charMeasurementEntry[-1], 'measurements'),
+                           (self.charHeightEntry[-1], 'height'), (self.charWeightEntry[-1], 'weight'),
+                           (self.charCupEntry[-1], 'cup'), (self.charAgeEntry[-1], 'age')):
+            if char.get(key, '') != '':
+                entry.insert(0, char[key])
+
+        # Getchu body image (img2) + its include checkbox
+        char['img2'] = main_path.replace('__img', 'charb') if has_main else ''
+        if char['img2'] and os.path.isfile(char['img2']):
+            Label(card, text='Getchu body', bg='#ffffff', anchor=W, fg='#555').place(x=760, y=2, width=120, height=14)
+            image = Image.open(char['img2'])
+            photo = ImageTk.PhotoImage(image.resize([120, 150]))
+            btn = Button(card, image=photo, command=lambda im=image: self.build_img_dialog(im))
+            btn.image = photo
+            btn.place(x=760, y=18, width=120, height=150)
+            self.charImgCheckVar.append(IntVar())
+            cic = Checkbutton(card, variable=self.charImgCheckVar[-1], bg='#ffffff')
+            cic.select()
+            cic.place(x=762, y=20)
+        else:
+            self.charImgCheckVar.append(IntVar())
+
+        # match-with-existing-character dropdown
+        matches = char.get('matches', {})
+        if len(matches) > 0:
+            options = [f"c {cid:05d} | e {eid}" for cid, eid in matches.items()] + ['']
+        else:
+            options = ['']
+        dropdown = ttk.Combobox(card, values=options, state="readonly", width=10)
+        dropdown.set('')
+        if len(matches) > 0:
+            dropdown.place(x=700, y=160, width=200, height=22)
+            dropdown.configure(postcommand=lambda: self.set_dropdown_width(dropdown, 1024))
+        self.char_dropdowns.append(dropdown)
+
+        return card
+
     def build_char_frame(self, parent, char):
+        if self.show_vndb:
+            return self._build_char_frame_combo(parent, char)
+
         if char['img1'] == '' or not os.path.isfile(char['img1']):
             return 0
 
@@ -605,10 +733,10 @@ class App(Tk):
             relation_id = entry_id if relation_id == 0 else relation_id
             self.glv.db.insert_entry_relation(entry_id, relation_id)
 
-            from ArchiveManager import ArchiveManager
-            archive_manager = ArchiveManager(self.glv)
-            archive_path = archive_manager.create_rar_archive(self.glv.file)
-            self.glv.log(f'Created compressed RAR archive for video file: {archive_path}')
+            # from ArchiveManager import ArchiveManager
+            # archive_manager = ArchiveManager(self.glv)
+            # archive_path = archive_manager.create_rar_archive(self.glv.file)
+            # self.glv.log(f'Created compressed RAR archive for video file: {archive_path}')
 
         if self.glv.sudo_pass:
             import subprocess
@@ -617,12 +745,34 @@ class App(Tk):
                 shell=True, check=False
             )
 
-        self.glv.quit()
+        if getattr(self.glv, 'multiple', False):
+            # Multiple mode: the entry is saved, so hand control back to Main
+            # (which re-enables the entry-number window for the next run) while
+            # keeping the browser session open. Closing only this review window
+            # ends its event loop without quitting the browser or the process.
+            self.destroy()
+        else:
+            self.glv.quit()
 
     @staticmethod
     def build_char_scroll_frame(parent, chars):
         buttons = []
         characters = []
+
+        # vndb-getchu: one wide card per row (VNDB portrait + Getchu image(s)).
+        if getattr(parent, 'show_vndb', False):
+            for j, char in enumerate(chars):
+                spacer = Button(parent.interior, width=0, height=12, bd=0, bg='gray',
+                                relief='solid', highlightthickness=0,
+                                activebackground='gray', activeforeground='gray')
+                spacer.pack(anchor=W)
+                char_frame = parent.build_char_frame(parent, char)
+                if char_frame == 0:
+                    spacer.destroy()
+                    continue
+                characters.append(char_frame)
+                characters[-1].place(x=2, y=j * 204 + 2)
+            return
 
         char_size = len(chars)
         for j in range(ceil(char_size / 2)):
@@ -670,6 +820,8 @@ class App(Tk):
 
     def fill_data(self, parent, data, vndb_id):
         self.vndb_id = vndb_id
+        # vndb-getchu: show the VNDB portrait beside the Getchu image(s).
+        self.frame.show_vndb = data.get('show_vndb', False)
         self.frame.create_info_ui(parent)
 
         if not os.path.isfile(data['cover1']):
@@ -703,7 +855,16 @@ class App(Tk):
             self.frame.entries['infopage'].insert(0, data['infopage'])
 
         if data['chars']:
-            valid_chars = [char for char in data['chars'] if char.get('img1', '') != '' and os.path.isfile(char['img1'])]
+            if self.frame.show_vndb:
+                # vndb-getchu: keep a character if it has an image on either side.
+                valid_chars = [
+                    char for char in data['chars']
+                    if (char.get('img1') and os.path.isfile(char['img1']))
+                    or (char.get('vndb_img1') and os.path.isfile(char['vndb_img1']))
+                ]
+            else:
+                valid_chars = [char for char in data['chars']
+                               if char.get('img1', '') != '' and os.path.isfile(char['img1'])]
             data['chars'] = valid_chars
             self.build_char_scroll_frame(self.frame, data['chars'])
 

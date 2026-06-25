@@ -40,10 +40,30 @@ class AskEntry(Tk):
         self.add_binds(self.getchu_entry)
         self.add_binds(self.vndb_entry)
          
+        # "Multiple" keeps the browser session alive across runs so the same
+        # logged-in website session can be reused for several entries in a row.
+        # It defaults to whatever it was on the previous run.
+        self.multipleVar = IntVar(value=1 if getattr(self.glv, 'multiple', False) else 0)
+        self.multiple_check = Checkbutton(root, text='Multiple', anchor=W, variable=self.multipleVar)
+        self.multiple_check.place(x=5, y=73, width=160, height=22)
+
         self.button = Button(root, text='Start', command=self.return_enry_nrs)
-        self.button.place(x=5, y=75, width=160, height=30)
-                 
+        self.button.place(x=5, y=100, width=160, height=30)
+
+        self.disabled = False
+
+    def set_frame_state(self, state):
+        """Enable ('normal') or disable ('disabled') every input widget."""
+        self.disabled = state == 'disabled'
+        for widget in (self.getchu_entry, self.vndb_entry,
+                       self.multiple_check, self.button):
+            widget.config(state=state)
+        self.getchu_label.config(state=state)
+        self.vndb_label.config(state=state)
+
     def return_enry_nrs(self):
+        if self.disabled:
+            return
         if self.getchu_entry.get() == '' or self.vndb_entry.get() == '':
             return
 
@@ -57,8 +77,22 @@ class AskEntry(Tk):
         self.glv.info_site = self.parent.getchu_id
         self.glv.db_site = self.parent.vndb_id
 
-        self.parent.ask_entry.destroy()
-        
+        self.glv.multiple = bool(self.multipleVar.get())
+
+        if self.glv.multiple:
+            # Lock the window while this entry is processed. Main destroys it
+            # before the review UI opens and shows a fresh, enabled one once the
+            # entry has been saved to the database.
+            self.set_frame_state('disabled')
+            self.update()
+        else:
+            # Single run: hide it like before; Main destroys it next.
+            self.withdraw()
+
+        # Stop this window's event loop but keep the window alive so it stays on
+        # screen (disabled) during processing instead of vanishing immediately.
+        self.quit()
+
     def add_binds(self, parent):
         parent.bind('<Button-3>', self.r_clicker, add='')
         parent.bind('<KP_Enter>', self.enter)
