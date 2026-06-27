@@ -69,8 +69,11 @@ class DB:
         if entry_id != 0:
             if driver is not None:
                 message = 'Duplicate entry: {}'.format(entry_id)
+                # Log it (which also closes the browser) and raise so it
+                # propagates to the top-level handler and opens the error dialog
+                # instead of quitting silently.
                 self.glv.log(message, 'error', driver)
-                self.glv.quit()
+                raise RuntimeError(message)
             else:
                 entry_data = self.get_entry_by_id(entry_id)
 

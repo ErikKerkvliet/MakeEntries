@@ -469,28 +469,38 @@ class Main:
 
 
 if __name__ == "__main__":
-    # try:
-    main = Main()
-    if len(sys.argv) == 2 or len(sys.argv) == 3 and sys.argv[2] == 'ova':
-        main.start(sys.argv[1])
-        sys.exit(1)
-    if len(sys.argv) == 3:
-        # print(sys.argv)
-        # time.sleep(100)
-        main.start(sys.argv[1], sys.argv[2])
-        sys.exit()
+    import traceback
+    import ErrorHandler
 
-    main.start()
-    # except Exception as e:
-    #     main.glv.log(e)
-    #
-    #     resolution = main.glv.get_screen_resolution()
-    #     loc_x = int(resolution[0] / 2) - 250
-    #     loc_y = 100
-    #
-    #     error = ErrorHandler()
-    #     error.title('Action log')
-    #     error.geometry(f"827x522+{loc_x}+{loc_y}")
-    #     error.set_error_message(main.glv.errorMessage)
-    #     error.resizable(False, False)
-    #     error.mainloop()
+    # Start capturing terminal output so it can be shown if the app crashes.
+    ErrorHandler.install()
+
+    main = Main()
+    try:
+        if len(sys.argv) == 2 or len(sys.argv) == 3 and sys.argv[2] == 'ova':
+            main.start(sys.argv[1])
+            sys.exit(1)
+        if len(sys.argv) == 3:
+            main.start(sys.argv[1], sys.argv[2])
+            sys.exit()
+
+        main.start()
+    except SystemExit:
+        # Normal exit (the user quit) — not a crash.
+        raise
+    except KeyboardInterrupt:
+        raise
+    except Exception:
+        tb_text = traceback.format_exc()
+        # Mirror the traceback to the terminal as Python normally would.
+        sys.stderr.write(tb_text)
+
+        # Make sure the browser is closed before we block on the dialog.
+        try:
+            if main.glv.driver is not None:
+                main.glv.driver.quit()
+        except Exception:
+            pass
+
+        ErrorHandler.show_error_dialog(ErrorHandler.get_terminal_output(), tb_text)
+        sys.exit(1)
